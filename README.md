@@ -58,7 +58,7 @@ A Solo Leveling inspired fitness tracking application that helps you level up yo
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/solofitness.git
+git clone https://github.com/yourbr0ther/solofitness.git
 cd solofitness
 ```
 
