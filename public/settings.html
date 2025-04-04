@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoloFitness - Settings</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="/icons/icon.ico">
+    <meta name="theme-color" content="#000000">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Settings</h1>
+            <nav>
+                <a href="/" class="nav-link">Today's Training</a>
+                <a href="/history.html" class="nav-link">History</a>
+                <a href="/settings.html" class="nav-link active">Settings</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="settings-section">
+                <h2>Notification Settings</h2>
+                <div class="settings-card">
+                    <div class="setting-group">
+                        <h3>Daily Reminders</h3>
+                        <div class="reminder-settings">
+                            <div class="setting-item">
+                                <label for="notifications-enabled">Enable Daily Reminders</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="notifications-enabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="setting-item" id="reminder-times-container">
+                                <label>Reminder Times</label>
+                                <div class="reminder-times">
+                                    <div class="reminder-time">
+                                        <input type="time" class="time-input" id="reminder-1">
+                                        <button class="remove-time-btn">×</button>
+                                    </div>
+                                </div>
+                                <button id="add-reminder" class="add-btn">Add Reminder Time</button>
+                            </div>
+
+                            <div class="setting-item">
+                                <label for="notification-sound">Notification Sound</label>
+                                <select id="notification-sound">
+                                    <option value="default">Default</option>
+                                    <option value="gentle">Gentle</option>
+                                    <option value="intense">Intense</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+
+                            <div class="setting-item">
+                                <label for="notification-message">Custom Message (optional)</label>
+                                <input type="text" id="notification-message" 
+                                       placeholder="Time to level up! Your daily training awaits.">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h2>App Preferences</h2>
+                <div class="settings-card">
+                    <div class="setting-group">
+                        <h3>Display Settings</h3>
+                        <div class="setting-item">
+                            <label for="theme-preference">Theme</label>
+                            <select id="theme-preference">
+                                <option value="dark">Dark (Default)</option>
+                                <option value="light">Light</option>
+                                <option value="system">System Default</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="show-streak">Show Streak Counter</label>
+                            <label class="switch">
+                                <input type="checkbox" id="show-streak" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label for="show-ai-coach">Show AI Coach</label>
+                            <label class="switch">
+                                <input type="checkbox" id="show-ai-coach" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h2>Profile</h2>
+                <div class="settings-card">
+                    <div class="setting-group">
+                        <div class="setting-item">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" placeholder="Enter your username">
+                        </div>
+                        <div class="setting-item">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" placeholder="Enter your email">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="settings-actions">
+                <button id="save-settings" class="save-btn">Save Settings</button>
+                <button id="test-notification" class="test-btn">Test Notification</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/settings.js"></script>
+</body>
+</html> 

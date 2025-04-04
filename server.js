@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const Exercise = require('./models/Exercise');
+const Profile = require('./models/Profile');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -120,6 +121,51 @@ app.get('/api/history/:userId', async (req, res) => {
     } catch (error) {
         console.error('Error fetching history:', error);
         res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// Profile Routes
+app.get('/api/profile/:userId', async (req, res) => {
+    try {
+        const profile = await Profile.findOne({ userId: req.params.userId });
+        if (!profile) {
+            return res.status(404).json({ message: 'Profile not found' });
+        }
+        res.json(profile);
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.post('/api/profile', async (req, res) => {
+    try {
+        const { userId, username, email, settings } = req.body;
+        
+        // Check if profile exists
+        let profile = await Profile.findOne({ userId });
+        
+        if (profile) {
+            // Update existing profile
+            profile.username = username;
+            profile.email = email;
+            profile.settings = settings;
+            await profile.save();
+        } else {
+            // Create new profile
+            profile = new Profile({
+                userId,
+                username,
+                email,
+                settings
+            });
+            await profile.save();
+        }
+        
+        res.json(profile);
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
