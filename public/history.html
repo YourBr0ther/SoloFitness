@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoloFitness - History</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="/icons/icon.ico">
+    <meta name="theme-color" content="#000000">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SoloFitness History</h1>
+            <nav>
+                <a href="/" class="nav-link">Today's Training</a>
+                <a href="/history.html" class="nav-link active">History</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="streak-section">
+                <h2>Current Streak</h2>
+                <div class="streak-display">
+                    <div class="streak-count">
+                        <span id="current-streak">0</span>
+                        <span class="streak-label">days</span>
+                    </div>
+                    <div class="streak-progress">
+                        <div class="streak-bar">
+                            <div id="streak-progress-bar"></div>
+                        </div>
+                        <div class="streak-target">Target: 30 days</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="history-section">
+                <h2>Training History</h2>
+                <div class="history-filters">
+                    <select id="time-period">
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="all">All time</option>
+                    </select>
+                </div>
+                <div class="history-list" id="history-list">
+                    <!-- History items will be inserted here by JavaScript -->
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <h2>Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Push-ups</h3>
+                        <div class="stat-value" id="total-pushups">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Sit-ups</h3>
+                        <div class="stat-value" id="total-situps">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Squats</h3>
+                        <div class="stat-value" id="total-squats">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Distance</h3>
+                        <div class="stat-value" id="total-running">0 km</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/history.js"></script>
+</body>
+</html> 

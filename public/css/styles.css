@@ -5,6 +5,9 @@
     --background-color: #121212;
     --card-background: #1E1E1E;
     --progress-background: #2A2A2A;
+    --button-hover: #0088CC;
+    --nav-active: #00A8FF;
+    --nav-inactive: #666666;
 }
 
 * {
@@ -62,7 +65,7 @@ h1 {
 
 .exercise-tracker {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -85,18 +88,35 @@ h1 {
     margin-bottom: 1rem;
 }
 
-.add-btn {
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.add-btn, .decrease-btn {
     background-color: var(--accent-color);
     color: var(--text-color);
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 5px;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: all 0.2s ease;
+    min-width: 40px;
 }
 
-.add-btn:hover {
+.decrease-btn {
+    background-color: var(--card-background);
+    border: 1px solid var(--accent-color);
+}
+
+.add-btn:hover, .decrease-btn:hover {
+    background-color: var(--button-hover);
     transform: scale(1.05);
+}
+
+.decrease-btn:hover {
+    background-color: var(--accent-color);
 }
 
 .ai-coach {
@@ -144,12 +164,185 @@ h1 {
     cursor: pointer;
 }
 
+/* Navigation */
+nav {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.nav-link {
+    color: var(--nav-inactive);
+    text-decoration: none;
+    font-size: 1.2rem;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: var(--accent-color);
+}
+
+.nav-link.active {
+    color: var(--nav-active);
+    border-bottom: 2px solid var(--nav-active);
+}
+
+/* Streak Section */
+.streak-section {
+    background-color: var(--card-background);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--accent-color);
+    margin-bottom: 2rem;
+}
+
+.streak-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.streak-count {
+    font-size: 3rem;
+    color: var(--accent-color);
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.streak-label {
+    font-size: 1.2rem;
+    color: var(--text-color);
+}
+
+.streak-progress {
+    width: 100%;
+    max-width: 400px;
+}
+
+.streak-bar {
+    height: 20px;
+    background-color: var(--progress-background);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+#streak-progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: var(--accent-color);
+    transition: width 0.3s ease;
+}
+
+.streak-target {
+    text-align: center;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+/* History Section */
+.history-section {
+    background-color: var(--card-background);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--accent-color);
+    margin-bottom: 2rem;
+}
+
+.history-filters {
+    margin-bottom: 1rem;
+}
+
+#time-period {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: 1px solid var(--accent-color);
+    padding: 0.5rem;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 200px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.history-item {
+    background-color: var(--primary-color);
+    padding: 1rem;
+    border-radius: 5px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.history-date {
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.history-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.history-stat {
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Stats Section */
+.stats-section {
+    background-color: var(--card-background);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--accent-color);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.stat-card {
+    background-color: var(--primary-color);
+    padding: 1rem;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.stat-card h3 {
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    color: var(--text-color);
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 10px;
     }
     
     .exercise-tracker {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .history-item {
         grid-template-columns: 1fr;
     }
 } 

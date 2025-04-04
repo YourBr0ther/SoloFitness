@@ -10,11 +10,75 @@ const exercises = {
 let currentLevel = 1;
 let currentXP = 0;
 const XP_PER_LEVEL = 1000;
+const userId = 'user1'; // This should be replaced with actual user authentication
 
 // DOM Elements
-const exerciseButtons = document.querySelectorAll('.add-btn');
+const exerciseButtons = document.querySelectorAll('.add-btn, .decrease-btn');
 const levelDisplay = document.getElementById('current-level');
 const xpProgress = document.getElementById('xp-progress');
+
+// API Functions
+async function fetchExerciseData() {
+    try {
+        const response = await fetch(`/api/exercises/${userId}`);
+        const data = await response.json();
+        
+        // Update local state
+        exercises.pushups.count = data.pushups.count;
+        exercises.situps.count = data.situps.count;
+        exercises.squats.count = data.squats.count;
+        exercises.running.count = data.running.count;
+        currentLevel = data.level;
+        currentXP = data.xp;
+        
+        // Update UI
+        updateUI();
+    } catch (error) {
+        console.error('Error fetching exercise data:', error);
+    }
+}
+
+async function updateExerciseData(exerciseType, count) {
+    try {
+        // Ensure count doesn't go below 0
+        count = Math.max(0, count);
+        
+        const response = await fetch(`/api/exercises/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ exerciseType, count })
+        });
+        const data = await response.json();
+        
+        // Update local state
+        exercises[exerciseType].count = data[exerciseType].count;
+        currentLevel = data.level;
+        currentXP = data.xp;
+        
+        // Update UI
+        updateUI();
+    } catch (error) {
+        console.error('Error updating exercise data:', error);
+    }
+}
+
+// UI Update Functions
+function updateUI() {
+    // Update exercise counters
+    Object.keys(exercises).forEach(exercise => {
+        const countElement = document.getElementById(`${exercise}-count`);
+        if (countElement) {
+            countElement.textContent = exercises[exercise].count;
+        }
+    });
+    
+    // Update level and XP
+    levelDisplay.textContent = currentLevel;
+    const xpPercentage = (currentXP % XP_PER_LEVEL) / XP_PER_LEVEL * 100;
+    xpProgress.style.width = `${xpPercentage}%`;
+}
 
 // Initialize exercise counters
 function initializeCounters() {
@@ -26,55 +90,20 @@ function initializeCounters() {
     });
 }
 
-// Update exercise count
-function updateExerciseCount(exercise) {
-    exercises[exercise].count++;
-    const countElement = document.getElementById(`${exercise}-count`);
-    if (countElement) {
-        countElement.textContent = exercises[exercise].count;
-    }
-    
-    // Check if target is reached
-    if (exercises[exercise].count >= exercises[exercise].target) {
-        addXP(100); // Add XP for completing an exercise
-    }
-}
-
-// Add XP and handle leveling
-function addXP(amount) {
-    currentXP += amount;
-    const xpPercentage = (currentXP % XP_PER_LEVEL) / XP_PER_LEVEL * 100;
-    xpProgress.style.width = `${xpPercentage}%`;
-    
-    // Check for level up
-    if (currentXP >= currentLevel * XP_PER_LEVEL) {
-        levelUp();
-    }
-}
-
-// Handle level up
-function levelUp() {
-    currentLevel++;
-    levelDisplay.textContent = currentLevel;
-    currentXP = 0;
-    xpProgress.style.width = '0%';
-    
-    // Show level up animation
-    const levelUpEvent = new CustomEvent('levelUp', { detail: { level: currentLevel } });
-    document.dispatchEvent(levelUpEvent);
-}
-
 // Event listeners
 exerciseButtons.forEach(button => {
     button.addEventListener('click', () => {
         const exercise = button.dataset.exercise;
-        updateExerciseCount(exercise);
+        const isDecrease = button.classList.contains('decrease-btn');
+        const currentCount = exercises[exercise].count;
+        const newCount = isDecrease ? currentCount - 1 : currentCount + 1;
+        updateExerciseData(exercise, newCount);
     });
 });
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    initializeCounters();
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchExerciseData();
     
     // Request notification permission
     if ('Notification' in window) {

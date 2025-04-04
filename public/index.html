@@ -6,12 +6,17 @@
     <title>SoloFitness - Level Up Your Training</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="/icons/icon.ico">
     <meta name="theme-color" content="#000000">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>SoloFitness</h1>
+            <nav>
+                <a href="/" class="nav-link active">Today's Training</a>
+                <a href="/history.html" class="nav-link">History</a>
+            </nav>
             <div class="level-display">
                 <span>Level: </span>
                 <span id="current-level">1</span>
@@ -30,28 +35,40 @@
                         <div class="counter">
                             <span id="pushups-count">0</span>/100
                         </div>
-                        <button class="add-btn" data-exercise="pushups">+</button>
+                        <div class="button-group">
+                            <button class="decrease-btn" data-exercise="pushups">-</button>
+                            <button class="add-btn" data-exercise="pushups">+</button>
+                        </div>
                     </div>
                     <div class="exercise">
                         <h3>Sit-ups</h3>
                         <div class="counter">
                             <span id="situps-count">0</span>/100
                         </div>
-                        <button class="add-btn" data-exercise="situps">+</button>
+                        <div class="button-group">
+                            <button class="decrease-btn" data-exercise="situps">-</button>
+                            <button class="add-btn" data-exercise="situps">+</button>
+                        </div>
                     </div>
                     <div class="exercise">
                         <h3>Squats</h3>
                         <div class="counter">
                             <span id="squats-count">0</span>/100
                         </div>
-                        <button class="add-btn" data-exercise="squats">+</button>
+                        <div class="button-group">
+                            <button class="decrease-btn" data-exercise="squats">-</button>
+                            <button class="add-btn" data-exercise="squats">+</button>
+                        </div>
                     </div>
                     <div class="exercise">
                         <h3>Running</h3>
                         <div class="counter">
                             <span id="running-count">0</span>/10 km
                         </div>
-                        <button class="add-btn" data-exercise="running">+</button>
+                        <div class="button-group">
+                            <button class="decrease-btn" data-exercise="running">-</button>
+                            <button class="add-btn" data-exercise="running">+</button>
+                        </div>
                     </div>
                 </div>
             </section>
