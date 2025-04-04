@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoloFitness - Level Up Your Training</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SoloFitness</h1>
+            <div class="level-display">
+                <span>Level: </span>
+                <span id="current-level">1</span>
+                <div class="xp-bar">
+                    <div id="xp-progress"></div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="daily-exercises">
+                <h2>Today's Training</h2>
+                <div class="exercise-tracker">
+                    <div class="exercise">
+                        <h3>Push-ups</h3>
+                        <div class="counter">
+                            <span id="pushups-count">0</span>/100
+                        </div>
+                        <button class="add-btn" data-exercise="pushups">+</button>
+                    </div>
+                    <div class="exercise">
+                        <h3>Sit-ups</h3>
+                        <div class="counter">
+                            <span id="situps-count">0</span>/100
+                        </div>
+                        <button class="add-btn" data-exercise="situps">+</button>
+                    </div>
+                    <div class="exercise">
+                        <h3>Squats</h3>
+                        <div class="counter">
+                            <span id="squats-count">0</span>/100
+                        </div>
+                        <button class="add-btn" data-exercise="squats">+</button>
+                    </div>
+                    <div class="exercise">
+                        <h3>Running</h3>
+                        <div class="counter">
+                            <span id="running-count">0</span>/10 km
+                        </div>
+                        <button class="add-btn" data-exercise="running">+</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ai-coach">
+                <h2>AI Coach</h2>
+                <div class="chat-container">
+                    <div id="chat-messages"></div>
+                    <div class="input-container">
+                        <input type="text" id="message-input" placeholder="Ask your AI coach...">
+                        <button id="send-message">Send</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 

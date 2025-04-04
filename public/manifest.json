@@ -1,0 +1,21 @@
+{
+    "name": "SoloFitness",
+    "short_name": "SoloFit",
+    "description": "Level up your fitness journey with Solo Leveling inspired training",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#00A8FF",
+    "icons": [
+        {
+            "src": "/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+} 
