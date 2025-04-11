@@ -9,6 +9,7 @@ export interface Profile {
     enableBonuses: boolean;
   };
   badges: GymBadge[];
+  apiKey: string;
 }
 
 export interface StreakDay {

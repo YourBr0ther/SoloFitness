@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { Profile } from "@/types/profile";
 import { MOCK_PROFILE } from "@/data/profile";
-import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award, Plus, Trash2 } from "lucide-react";
+import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award, Plus, Trash2, Key } from "lucide-react";
 import Image from "next/image";
 import StreakCalendar from "@/components/profile/StreakCalendar";
 import ProfileStats from "@/components/profile/ProfileStats";
 import BadgesPopup from "@/components/profile/BadgesPopup";
+import APIKeyPopup from "@/components/profile/APIKeyPopup";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [tempTime, setTempTime] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
+  const [showAPIKey, setShowAPIKey] = useState(false);
 
   // Get the last two weeks of dates
   const getLastTwoWeeks = () => {
@@ -180,6 +182,10 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSaveAPIKey = (newKey: string) => {
+    setProfile({ ...profile, apiKey: newKey });
+  };
+
   return (
     <main className="min-h-screen bg-gray-950 text-white p-4">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -326,9 +332,8 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Statistics Section */}
+        {/* Stats Section */}
         <section className="bg-gray-900 rounded-lg p-6">
-          <h2 className="sr-only">Statistics</h2>
           <ProfileStats profile={profile} />
         </section>
 
@@ -504,8 +509,24 @@ export default function ProfilePage() {
           />
         )}
 
+        {showAPIKey && (
+          <APIKeyPopup
+            apiKey={profile.apiKey}
+            onClose={() => setShowAPIKey(false)}
+            onSave={handleSaveAPIKey}
+          />
+        )}
+
         {/* Sign Out Button */}
-        <div className="flex justify-center mt-8">
+        <div className="flex justify-center mt-8 space-x-4">
+          <button
+            onClick={() => setShowAPIKey(true)}
+            className="flex items-center space-x-2 px-4 py-2 text-[#FFA500] border border-[#FFA500] rounded-lg transition-colors hover:bg-[#FFA500] hover:bg-opacity-10"
+            aria-label="View API Key"
+          >
+            <Key className="w-5 h-5" />
+            <span>API Key</span>
+          </button>
           <button
             onClick={handleSignOut}
             className="flex items-center space-x-2 px-4 py-2 text-red-500 border border-red-500 rounded-lg transition-colors hover:bg-red-500 hover:bg-opacity-10"

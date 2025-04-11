@@ -4,6 +4,7 @@ export const MOCK_PROFILE: Profile = {
   id: "1",
   username: "Solo Warrior",
   avatarUrl: "/default-avatar.svg",
+  apiKey: "sk_test_51NtX9X2eZvKYb2P4d8f7g9h2j3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y8z9",
   streakHistory: [
     {
       date: "2024-03-20",
