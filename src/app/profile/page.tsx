@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Profile } from "@/types/profile";
 import { MOCK_PROFILE } from "@/data/profile";
-import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award } from "lucide-react";
+import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import StreakCalendar from "@/components/profile/StreakCalendar";
 import ProfileStats from "@/components/profile/ProfileStats";
@@ -18,6 +18,37 @@ export default function ProfilePage() {
   const [tempTime, setTempTime] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
+
+  // Get the last two weeks of dates
+  const getLastTwoWeeks = () => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+  };
+
+  // Get streak history for the last two weeks
+  const getTwoWeekStreakHistory = () => {
+    const lastTwoWeeks = getLastTwoWeeks();
+    return lastTwoWeeks.map(date => {
+      const existingDay = profile.streakHistory.find(day => day.date === date);
+      return existingDay || {
+        date,
+        completed: false,
+        xpEarned: 0,
+        exercises: {
+          pushups: 0,
+          situps: 0,
+          squats: 0,
+          milesRan: 0
+        }
+      };
+    });
+  };
 
   // Check if there are any new badges
   const hasNewBadges = profile.badges.some(badge => badge.isNew);
@@ -155,7 +186,8 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold mb-4 text-[#00A8FF]">Profile</h1>
 
         {/* Profile Section */}
-        <div className="bg-gray-900 rounded-lg p-6">
+        <section className="bg-gray-900 rounded-lg p-6">
+          <h2 className="sr-only">User Profile</h2>
           <div className="flex justify-between items-start">
             <div className="flex items-center space-x-4">
               <div className="relative group">
@@ -209,22 +241,24 @@ export default function ProfilePage() {
                         onChange={handleUsernameChange}
                         className="bg-gray-800 text-white px-3 py-2 rounded-lg w-full"
                         placeholder="Enter username"
+                        aria-label="Username input"
                       />
                       <button
                         onClick={handleUsernameSave}
                         className="bg-[#00A8FF] text-white px-4 py-2 rounded-lg hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={!!usernameError}
+                        aria-label="Save username"
                       >
                         Save
                       </button>
                     </div>
                     {usernameError && (
-                      <p className="text-red-500 text-sm">{usernameError}</p>
+                      <p className="text-red-500 text-sm" role="alert">{usernameError}</p>
                     )}
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-bold text-white">{profile.username}</h2>
+                    <h3 className="text-xl font-bold text-white">{profile.username}</h3>
                     <button
                       onClick={() => setIsEditingUsername(true)}
                       className="text-gray-400 hover:text-white"
@@ -251,7 +285,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Preferences Section */}
-          <div className="space-y-4">
+          <div className="space-y-4 mt-6">
             <h3 className="text-lg font-semibold text-white mb-2">Preferences</h3>
             <div className="flex items-center justify-between">
               <span className="text-gray-300">Enable Penalties</span>
@@ -261,6 +295,8 @@ export default function ProfilePage() {
                   profile.preferences.enablePenalties ? 'bg-[#00A8FF]' : 'bg-gray-700'
                 }`}
                 aria-label={`${profile.preferences.enablePenalties ? 'Disable' : 'Enable'} penalties`}
+                role="switch"
+                aria-checked={profile.preferences.enablePenalties}
               >
                 <div
                   className={`w-6 h-6 rounded-full bg-white transform transition-transform ${
@@ -277,6 +313,8 @@ export default function ProfilePage() {
                   profile.preferences.enableBonuses ? 'bg-[#00A8FF]' : 'bg-gray-700'
                 }`}
                 aria-label={`${profile.preferences.enableBonuses ? 'Disable' : 'Enable'} bonuses`}
+                role="switch"
+                aria-checked={profile.preferences.enableBonuses}
               >
                 <div
                   className={`w-6 h-6 rounded-full bg-white transform transition-transform ${
@@ -286,17 +324,38 @@ export default function ProfilePage() {
               </button>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Statistics Section */}
-        <ProfileStats profile={profile} />
+        <section className="bg-gray-900 rounded-lg p-6">
+          <h2 className="sr-only">Statistics</h2>
+          <ProfileStats profile={profile} />
+        </section>
 
         {/* Notifications Section */}
-        <div className="bg-gray-900 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Bell className="w-5 h-5 mr-2 text-[#00A8FF]" />
-            Reminders
-          </h3>
+        <section className="bg-gray-900 rounded-lg p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-white flex items-center">
+              <Bell className="w-5 h-5 mr-2 text-[#00A8FF]" />
+              Reminders
+            </h2>
+            <button
+              onClick={() => {
+                const newId = (profile.notifications.length + 1).toString();
+                setProfile({
+                  ...profile,
+                  notifications: [
+                    ...profile.notifications,
+                    { id: newId, time: "09:00", enabled: true }
+                  ]
+                });
+              }}
+              className="text-[#00A8FF] hover:text-[#00A8FF]/80"
+              aria-label="Add new reminder"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
           <div className="space-y-4">
             {profile.notifications.map((notification) => (
               <div key={notification.id} className="flex items-center justify-between">
@@ -308,6 +367,7 @@ export default function ProfilePage() {
                       onChange={handleTimeChange}
                       className="bg-gray-800 text-white px-3 py-2 rounded-lg"
                       step="300"
+                      aria-label="Time input"
                     />
                     <button
                       onClick={saveTimeChange}
@@ -339,31 +399,50 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-                <button
-                  onClick={() => toggleNotification(notification.id)}
-                  className={`w-12 h-6 rounded-full transition-colors ${
-                    notification.enabled ? 'bg-[#00A8FF]' : 'bg-gray-700'
-                  }`}
-                  aria-label={`${notification.enabled ? 'Disable' : 'Enable'} reminder at ${formatTimeForDisplay(notification.time)}`}
-                >
-                  <div
-                    className={`w-6 h-6 rounded-full bg-white transform transition-transform ${
-                      notification.enabled ? 'translate-x-6' : 'translate-x-0'
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      setProfile({
+                        ...profile,
+                        notifications: profile.notifications.filter(n => n.id !== notification.id)
+                      });
+                    }}
+                    className="text-red-500 hover:text-red-400"
+                    aria-label="Delete reminder"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => toggleNotification(notification.id)}
+                    className={`w-12 h-6 rounded-full transition-colors ${
+                      notification.enabled ? 'bg-[#00A8FF]' : 'bg-gray-700'
                     }`}
-                  />
-                </button>
+                    aria-label={`${notification.enabled ? 'Disable' : 'Enable'} reminder at ${formatTimeForDisplay(notification.time)}`}
+                    role="switch"
+                    aria-checked={notification.enabled}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full bg-white transform transition-transform ${
+                        notification.enabled ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* Streak History Section */}
-        <div className="bg-gray-900 rounded-lg p-6">
+        <section className="bg-gray-900 rounded-lg p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-white flex items-center">
-              <Flame className="w-5 h-5 mr-2 text-[#00A8FF]" />
-              Streak History
-            </h3>
+            <div>
+              <h2 className="text-lg font-semibold text-white flex items-center">
+                <Flame className="w-5 h-5 mr-2 text-[#00A8FF]" />
+                Streak History
+              </h2>
+              <p className="text-sm text-gray-400 mt-1">Last 14 days</p>
+            </div>
             <button
               onClick={() => setShowCalendar(true)}
               className="text-gray-400 hover:text-white p-2"
@@ -372,37 +451,44 @@ export default function ProfilePage() {
               <Calendar size={20} />
             </button>
           </div>
-          <div className="space-y-2">
-            {profile.streakHistory.map((day, index) => (
-              <div
-                key={day.date}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-800"
-              >
-                <div className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
+              <div className="space-y-2">
+                {getTwoWeekStreakHistory().map((day) => (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      day.completed ? 'bg-[#00A8FF]' : 'bg-gray-700'
-                    }`}
+                    key={day.date}
+                    className="flex items-center justify-between p-3 rounded-lg bg-gray-800"
+                    role="listitem"
                   >
-                    {day.completed ? (
-                      <Trophy className="w-4 h-4 text-white" />
-                    ) : (
-                      <span className="text-gray-400">✕</span>
-                    )}
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          day.completed ? 'bg-[#00A8FF]' : 'bg-gray-700'
+                        }`}
+                        aria-label={day.completed ? "Completed" : "Not completed"}
+                      >
+                        {day.completed ? (
+                          <Trophy className="w-4 h-4 text-white" />
+                        ) : (
+                          <span className="text-gray-400">✕</span>
+                        )}
+                      </div>
+                      <span className="text-gray-300">
+                        {new Date(day.date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                    <span className="text-gray-400">{day.xpEarned} XP</span>
                   </div>
-                  <span className="text-gray-300">
-                    {new Date(day.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
-                </div>
-                <span className="text-gray-400">{day.xpEarned} XP</span>
+                ))}
               </div>
-            ))}
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none" />
           </div>
-        </div>
+        </section>
 
         {showCalendar && (
           <StreakCalendar

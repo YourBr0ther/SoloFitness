@@ -1,4 +1,4 @@
-import { Trophy, Flame, Dumbbell, Run } from "lucide-react";
+import { Trophy, Flame, Dumbbell } from "lucide-react";
 import { Profile } from "@/types/profile";
 
 interface ProfileStatsProps {
@@ -38,7 +38,7 @@ export default function ProfileStats({ profile }: ProfileStatsProps) {
   }, { pushups: 0, situps: 0, squats: 0, milesRan: 0 });
 
   return (
-    <div className="bg-gray-900 rounded-lg p-6">
+    <>
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
         <Dumbbell className="w-5 h-5 mr-2 text-[#00A8FF]" />
         Statistics
@@ -65,7 +65,7 @@ export default function ProfileStats({ profile }: ProfileStatsProps) {
       </div>
 
       {/* Exercise Breakdown */}
-      <div className="bg-gray-800 rounded-lg p-4">
+      <section>
         <div className="flex items-center justify-between mb-4">
           <span className="text-gray-400">Exercise Breakdown</span>
           <Dumbbell className="w-5 h-5 text-[#00A8FF]" />
@@ -88,7 +88,7 @@ export default function ProfileStats({ profile }: ProfileStatsProps) {
             <div className="text-xl font-bold text-white">{exerciseTotals.milesRan.toFixed(1)}</div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </>
   );
 } 
