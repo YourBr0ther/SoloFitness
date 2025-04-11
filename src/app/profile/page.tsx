@@ -9,6 +9,7 @@ import StreakCalendar from "@/components/profile/StreakCalendar";
 import ProfileStats from "@/components/profile/ProfileStats";
 import BadgesPopup from "@/components/profile/BadgesPopup";
 import APIKeyPopup from "@/components/profile/APIKeyPopup";
+import SignOutConfirmation from "@/components/profile/SignOutConfirmation";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
   const [showAPIKey, setShowAPIKey] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   // Get the last two weeks of dates
   const getLastTwoWeeks = () => {
@@ -517,6 +519,16 @@ export default function ProfilePage() {
           />
         )}
 
+        {showSignOutConfirm && (
+          <SignOutConfirmation
+            onConfirm={() => {
+              handleSignOut();
+              setShowSignOutConfirm(false);
+            }}
+            onCancel={() => setShowSignOutConfirm(false)}
+          />
+        )}
+
         {/* Sign Out Button */}
         <div className="flex justify-center mt-8 space-x-4">
           <button
@@ -528,7 +540,7 @@ export default function ProfilePage() {
             <span>API Key</span>
           </button>
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowSignOutConfirm(true)}
             className="flex items-center space-x-2 px-4 py-2 text-red-500 border border-red-500 rounded-lg transition-colors hover:bg-red-500 hover:bg-opacity-10"
             aria-label="Sign out"
           >
