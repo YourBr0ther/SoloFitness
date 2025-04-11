@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Minus, Trophy, Flame, User } from "lucide-react";
+import { Plus, Minus, Trophy, Flame, User, X, Check } from "lucide-react";
 import Link from "next/link";
 
 interface Exercise {
@@ -13,12 +13,35 @@ interface Exercise {
   unit?: string;
 }
 
+interface PenaltyTask {
+  exercise: string;
+  count: number;
+  unit: string;
+}
+
+interface BonusTask {
+  description: string;
+  completed: boolean;
+}
+
 const EXERCISES: Exercise[] = [
   { id: "pushups", name: "Push-ups", count: 3, dailyGoal: 20, increment: 1, unit: "reps" },
   { id: "situps", name: "Sit-ups", count: 3, dailyGoal: 25, increment: 1, unit: "reps" },
   { id: "squats", name: "Squats", count: 3, dailyGoal: 30, increment: 1, unit: "reps" },
   { id: "running", name: "Running", count: 0, dailyGoal: 2, increment: 0.1, unit: "miles" },
 ];
+
+// Mock data - this would come from backend later
+const MOCK_PENALTY: PenaltyTask = {
+  exercise: "Push-ups",
+  count: 5,
+  unit: "reps"
+};
+
+const MOCK_BONUS: BonusTask = {
+  description: "Give someone a genuine compliment today",
+  completed: false
+};
 
 export default function JournalPage() {
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
@@ -27,12 +50,42 @@ export default function JournalPage() {
   const [streakCount, setStreakCount] = useState(7); // Mock streak count
   const [isPulsing, setIsPulsing] = useState(false);
   const [dailyXP, setDailyXP] = useState(150); // Mock daily XP
+  const [hasPenalty, setHasPenalty] = useState(true); // This would be determined by backend
+  const [penaltyTask, setPenaltyTask] = useState<PenaltyTask>(MOCK_PENALTY);
+  const [bonusTask, setBonusTask] = useState<BonusTask>(MOCK_BONUS);
+  const [showBonus, setShowBonus] = useState(!hasPenalty); // Only show bonus if no penalty
+  const [penaltyProgress, setPenaltyProgress] = useState(0);
+  const [showPenaltyComplete, setShowPenaltyComplete] = useState(false);
+  const [isPenaltyTransitioning, setIsPenaltyTransitioning] = useState(false);
 
   // Check if all exercises have met their daily goals
   useEffect(() => {
     const allGoalsCompleted = exercises.every(exercise => exercise.count >= exercise.dailyGoal);
     setShowCompleteButton(allGoalsCompleted);
   }, [exercises]);
+
+  // Check if penalty is completed
+  useEffect(() => {
+    if (penaltyProgress >= penaltyTask.count) {
+      setShowPenaltyComplete(true);
+      // Start with red color
+      setIsPenaltyTransitioning(false);
+      // After 1 second, transition to blue
+      setTimeout(() => {
+        setIsPenaltyTransitioning(true);
+        // After another second, update the UI state
+        setTimeout(() => {
+          setHasPenalty(false);
+          setShowBonus(true);
+          // Keep the popup visible for 2 more seconds
+          setTimeout(() => {
+            setShowPenaltyComplete(false);
+            setIsPenaltyTransitioning(false);
+          }, 2000);
+        }, 1000);
+      }, 1000);
+    }
+  }, [penaltyProgress, penaltyTask.count]);
 
   const handleIncrement = (id: string) => {
     setExercises(exercises.map(exercise => {
@@ -58,6 +111,14 @@ export default function JournalPage() {
     }));
   };
 
+  const handleIncrementPenalty = () => {
+    setPenaltyProgress(prev => Math.min(prev + 1, penaltyTask.count));
+  };
+
+  const handleDecrementPenalty = () => {
+    setPenaltyProgress(prev => Math.max(prev - 1, 0));
+  };
+
   const playSuccessSound = () => {
     const audio = new Audio('/success.mp3');
     audio.play().catch(error => console.log('Audio playback failed:', error));
@@ -80,6 +141,15 @@ export default function JournalPage() {
     }, 3000);
   };
 
+  const handleCompletePenalty = () => {
+    setHasPenalty(false);
+    setShowBonus(true); // Optionally show bonus after completing penalty
+  };
+
+  const handleCompleteBonus = () => {
+    setBonusTask({ ...bonusTask, completed: true });
+  };
+
   const getDayLetters = () => {
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     return days.map((day, index) => (
@@ -98,7 +168,8 @@ export default function JournalPage() {
       <main 
         className={`flex min-h-screen flex-col items-center p-4 pb-20 transition-all duration-300 
           ${isPulsing ? 'scale-105' : 'scale-100'}
-          ${showStreakPopup ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
+          ${showStreakPopup ? 'opacity-20 pointer-events-none' : 'opacity-100'}
+          ${showPenaltyComplete ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
       >
         <div className="w-full max-w-4xl">
           {/* Header Section */}
@@ -164,33 +235,86 @@ export default function JournalPage() {
                     <button
                       onClick={() => handleDecrement(exercise.id)}
                       className="bg-gray-800 text-white p-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={exercise.count === 0}
+                      disabled={exercise.count <= 0}
                     >
                       <Minus size={20} />
                     </button>
                     <button
                       onClick={() => handleIncrement(exercise.id)}
-                      className="bg-[#00A8FF] text-white p-2 rounded-md hover:bg-[#0095E6] transition-colors"
+                      className="bg-gray-800 text-white p-2 rounded-md hover:bg-gray-700 transition-colors"
                     >
                       <Plus size={20} />
                     </button>
                   </div>
                 </div>
-
-                {/* Progress Bar */}
                 <div className="w-full bg-gray-800 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      exercise.count >= exercise.dailyGoal ? 'bg-green-500' : 'bg-[#00A8FF]'
-                    }`}
-                    style={{ 
-                      width: `${Math.min((exercise.count / exercise.dailyGoal) * 100, 100)}%`
+                    className="bg-[#00A8FF] h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min(100, (exercise.count / exercise.dailyGoal) * 100)}%`,
                     }}
                   />
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Penalty Task */}
+          {hasPenalty && (
+            <div className="mt-6">
+              <div className="bg-gray-900 rounded-lg p-4 border-2 border-red-500">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="font-medium text-red-500 uppercase tracking-wider text-sm mb-1">Penalty Task</h3>
+                    <p className="text-white">Complete {penaltyTask.count} {penaltyTask.exercise} to remove penalty</p>
+                    <p className="text-sm text-gray-400 mt-1">Missed from previous day</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleDecrementPenalty}
+                      className="bg-gray-800 text-white p-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={penaltyProgress <= 0}
+                    >
+                      <Minus size={20} />
+                    </button>
+                    <button
+                      onClick={handleIncrementPenalty}
+                      className="bg-gray-800 text-white p-2 rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-800 rounded-full h-2">
+                  <div
+                    className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(penaltyProgress / penaltyTask.count) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bonus Task */}
+          {showBonus && !bonusTask.completed && (
+            <div className="mt-6">
+              <div className="bg-gray-900 rounded-lg p-4 border-2 border-green-500">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-green-500 uppercase tracking-wider text-sm mb-1">Bonus Challenge</h3>
+                    <p className="text-white">{bonusTask.description}</p>
+                    <p className="text-sm text-gray-400 mt-1">Complete for extra XP!</p>
+                  </div>
+                  <button
+                    onClick={handleCompleteBonus}
+                    className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 transition-colors"
+                  >
+                    <Check size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Complete Training Button */}
           {showCompleteButton && (
@@ -204,6 +328,32 @@ export default function JournalPage() {
           )}
         </div>
       </main>
+
+      {/* Penalty Completion Popup */}
+      {showPenaltyComplete && (
+        <>
+          {/* Semi-transparent overlay */}
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 z-40" />
+          
+          {/* Popup */}
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className={`bg-gray-900 rounded-lg p-6 border-2 transition-colors duration-1000 ${
+              isPenaltyTransitioning ? 'border-[#00A8FF]' : 'border-red-500'
+            }`}>
+              <div className="text-center">
+                <h3 className={`text-xl font-bold mb-2 transition-colors duration-1000 ${
+                  isPenaltyTransitioning ? 'text-[#00A8FF]' : 'text-red-500'
+                }`}>
+                  PENALTY COMPLETED!
+                </h3>
+                <p className="text-white">
+                  {penaltyTask.count} {penaltyTask.exercise} completed
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Enhanced Streak Popup with cooler messaging */}
       {showStreakPopup && (
