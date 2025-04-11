@@ -58,7 +58,7 @@ SoloFitness is a modern fitness application inspired by the aesthetic and theme 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/solofitness.git
+   git clone https://github.com/yourbr0ther/solofitness.git
    cd solofitness
    ```
 
