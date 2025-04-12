@@ -39,8 +39,9 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
       );
     }
 
-    (request as AuthenticatedRequest).user = user;
-    return request as AuthenticatedRequest;
+    const authRequest = request.clone() as AuthenticatedRequest;
+    authRequest.user = user;
+    return authRequest;
   } catch (error) {
     return NextResponse.json(
       { message: 'Invalid token' },
@@ -49,6 +50,7 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
   }
 }
 
+// Wrapper for route handlers without params
 export function withAuth(handler: (req: AuthenticatedRequest) => Promise<NextResponse>) {
   return async (request: Request) => {
     const authResult = await authenticateRequest(request);
@@ -59,4 +61,9 @@ export function withAuth(handler: (req: AuthenticatedRequest) => Promise<NextRes
 
     return handler(authResult);
   };
+}
+
+// Direct authentication for route handlers with params
+export async function withAuthDirect(request: Request): Promise<AuthenticatedRequest | NextResponse> {
+  return authenticateRequest(request);
 } 

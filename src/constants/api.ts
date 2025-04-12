@@ -1,23 +1,22 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-
+// Use relative paths for API routes since we're using Next.js API routes
 export const API_ENDPOINTS = {
   // Coach endpoints
-  COACHES: `${API_BASE}/coaches`,
-  COACH: (id: string) => `${API_BASE}/coaches/${id}`,
+  COACHES: '/api/coaches',
+  COACH: (id: string) => `/api/coaches/${id}`,
   
   // Journal endpoints
-  EXERCISES: `${API_BASE}/exercises`,
-  EXERCISE: (id: string) => `${API_BASE}/exercises/${id}`,
-  PENALTY_TASKS: `${API_BASE}/penalty-tasks`,
-  BONUS_TASKS: `${API_BASE}/bonus-tasks`,
+  EXERCISES: '/api/exercises',
+  EXERCISE: (id: string) => `/api/exercises/${id}`,
+  PENALTY_TASKS: '/api/penalty-tasks',
+  BONUS_TASKS: '/api/bonus-tasks',
   
   // Profile endpoints
-  PROFILE: `${API_BASE}/profile`,
-  STREAK: `${API_BASE}/streak`,
-  BADGES: `${API_BASE}/badges`,
+  PROFILE: '/api/profile',
+  STREAK: '/api/streak',
+  BADGES: '/api/badges',
   
   // Authentication endpoints
-  LOGIN: `${API_BASE}/auth/login`,
-  REGISTER: `${API_BASE}/auth/register`,
-  REFRESH_TOKEN: `${API_BASE}/auth/refresh`,
+  LOGIN: '/api/auth/login',
+  REGISTER: '/api/auth/register',
+  REFRESH_TOKEN: '/api/auth/refresh',
 } as const; 
