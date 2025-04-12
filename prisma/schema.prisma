@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  password  String
+  username  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  profile    Profile?
+  workouts   Workout[]
+  exercises  Exercise[]
+  settings   UserSettings?
+}
+
+model Profile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  avatarUrl String?
+  level     Int      @default(1)
+  xp        Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Exercise {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  muscleGroup String?
+  equipment   String?
+  difficulty  String?
+  videoUrl    String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String   @db.ObjectId
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+  workouts    WorkoutExercise[]
+}
+
+model Workout {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  date      DateTime
+  duration  Int?     // in minutes
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String   @db.ObjectId
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+  exercises WorkoutExercise[]
+}
+
+model WorkoutExercise {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  workoutId  String   @db.ObjectId
+  exerciseId String   @db.ObjectId
+  sets       Int
+  reps       Int
+  weight     Float?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+}
+
+model UserSettings {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @unique @db.ObjectId
+  enableNotifications Boolean @default(true)
+  darkMode          Boolean  @default(false)
+  language          String   @default("en")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+} 

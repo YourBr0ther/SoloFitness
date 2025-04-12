@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['10.0.2.42'], // Allow requests from the VM's IP address
+  // Allow requests from all network interfaces
+  hostname: '0.0.0.0',
+  // Additional security headers can be added here if needed
 };
 
 module.exports = nextConfig; 

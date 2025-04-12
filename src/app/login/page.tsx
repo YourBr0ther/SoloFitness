@@ -77,14 +77,20 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      // TODO: Replace with actual API call
-      const response = await new Promise<{ success: boolean }>((resolve) => {
-        setTimeout(() => {
-          resolve({ success: false }); // Simulating failed login
-        }, 1500);
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
-      if (!response.success) {
+      const data = await response.json();
+
+      if (!response.ok) {
         const newFailedAttempts = failedAttempts + 1;
         setFailedAttempts(newFailedAttempts);
         
@@ -99,14 +105,20 @@ export default function LoginPage() {
           });
         } else {
           setErrors({
-            general: "Invalid email or password. Please try again."
+            general: data.message || "Invalid email or password. Please try again."
           });
         }
-      } else {
-        // Successful login
-        router.push('/coach');
+        return;
       }
+
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Successful login
+      router.push('/coach');
     } catch (error) {
+      console.error('Login error:', error);
       setErrors({
         general: "An error occurred. Please try again later."
       });

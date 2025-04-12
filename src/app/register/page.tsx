@@ -17,6 +17,7 @@ export default function RegisterPage() {
     email?: string;
     password?: string;
     confirmPassword?: string;
+    general?: string;
   }>({});
   const [passwordStrength, setPasswordStrength] = useState<{
     score: number;
@@ -107,11 +108,42 @@ export default function RegisterPage() {
     
     setIsLoading(true);
     
-    // TODO: Replace with actual API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await fetch('http://localhost:4000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          username: formData.name,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrors({
+          general: data.message || "Registration failed. Please try again."
+        });
+        return;
+      }
+
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Successful registration
       router.push('/coach');
-    }, 1500);
+    } catch (error) {
+      console.error('Registration error:', error);
+      setErrors({
+        general: "An error occurred. Please try again later."
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
