@@ -18,9 +18,18 @@ interface ChatInterfaceProps {
   onRequestChangeCoach: () => void;
 }
 
+const TypingIndicator = () => (
+  <div className="flex space-x-2 p-3 max-w-[100px] bg-gray-800 rounded-lg">
+    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+  </div>
+);
+
 export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -29,7 +38,7 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +53,13 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
 
     setMessages((prev) => [...prev, newMessage]);
     setInputMessage('');
+    
+    // Show typing indicator
+    setIsTyping(true);
+    scrollToBottom();
 
-    // Simulate coach response (to be replaced with actual AI integration)
+    // Simulate coach response with typing delay
+    const typingDuration = Math.random() * 2000 + 1000; // Random duration between 1-3 seconds
     setTimeout(() => {
       const coachResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -53,8 +67,9 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
         sender: 'coach',
         timestamp: new Date(),
       };
+      setIsTyping(false);
       setMessages((prev) => [...prev, coachResponse]);
-    }, 1000);
+    }, typingDuration);
   };
 
   return (
@@ -95,6 +110,11 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
             </div>
           </div>
         ))}
+        {isTyping && (
+          <div className="flex justify-start">
+            <TypingIndicator />
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
