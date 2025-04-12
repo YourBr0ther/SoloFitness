@@ -1,103 +1,130 @@
-import Image from "next/image";
+'use client';
+
+import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [mounted, setMounted] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleBeginJourney = () => {
+    setIsTransitioning(true);
+    // Create a glowing effect
+    const button = document.querySelector('button');
+    if (button) {
+      button.style.boxShadow = '0 0 40px rgba(0, 168, 255, 0.8)';
+    }
+    
+    // Wait for the glow effect
+    setTimeout(() => {
+      router.push('/login');
+    }, 500);
+  };
+
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <AnimatePresence mode="wait">
+      {!isTransitioning ? (
+        <motion.div 
+          className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          {/* Background gradient */}
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-b from-black via-[#001a33] to-black opacity-90"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1 }}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          
+          {/* Glowing particles */}
+          <div className="absolute inset-0 overflow-hidden">
+            {[...Array(20)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                }}
+                animate={{
+                  scale: [1, 1.5, 1],
+                  opacity: [0.3, 0.8, 0.3],
+                }}
+                transition={{
+                  duration: 2 + Math.random() * 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 text-center space-y-8">
+            {/* App Name */}
+            <motion.h1 
+              className="text-6xl md:text-8xl font-bold tracking-tight"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <span className="text-[#00A8FF]">Solo</span>Fitness
+            </motion.h1>
+
+            {/* Tagline */}
+            <motion.p 
+              className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              Level up your fitness journey with the power of a hunter
+            </motion.p>
+
+            {/* Begin Button */}
+            <motion.button
+              className="px-12 py-4 bg-[#00A8FF] text-black font-bold text-xl rounded-lg
+                       hover:bg-[#00B8FF] transform hover:scale-105 transition-all duration-300
+                       shadow-[0_0_20px_rgba(0,168,255,0.5)] hover:shadow-[0_0_30px_rgba(0,168,255,0.7)]"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleBeginJourney}
+            >
+              Begin Your Journey
+            </motion.button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div 
+          className="min-h-screen bg-black flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <motion.div
+            className="w-16 h-16 border-4 border-[#00A8FF] border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

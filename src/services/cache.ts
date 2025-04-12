@@ -32,8 +32,10 @@ export class CacheService {
 
   private constructor() {
     this.cache = new Map();
-    this.loadFromStorage();
-    this.cleanupExpired();
+    if (typeof window !== 'undefined') {
+      this.loadFromStorage();
+      this.cleanupExpired();
+    }
   }
 
   public static getInstance(): CacheService {
@@ -45,6 +47,8 @@ export class CacheService {
 
   private loadFromStorage(): void {
     try {
+      if (typeof window === 'undefined') return;
+      
       const stored = localStorage.getItem(this.storageKey);
       if (stored) {
         const { version, data } = JSON.parse(stored);
@@ -64,6 +68,8 @@ export class CacheService {
 
   private saveToStorage(): void {
     try {
+      if (typeof window === 'undefined') return;
+      
       const data = {
         version: this.currentVersion,
         data: Object.fromEntries(this.cache)
