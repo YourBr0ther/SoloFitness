@@ -546,6 +546,241 @@ export class RealApiService extends ApiService {
     await this.syncService.addBatch(batchItems);
     return { data: undefined, status: 202 }; // Accepted
   }
+
+  // Streak endpoints
+  async getStreakHistory(): Promise<ApiResponse<StreakDay[]>> {
+    try {
+      const response = await this.fetchWithAuth('/api/profile');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to fetch streak history', response.status);
+      }
+      
+      // Profile data includes streak history
+      return {
+        data: data.profile?.streakHistory || [],
+        status: response.status
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  async updateStreak(update: StreakDay): Promise<ApiResponse<StreakDay>> {
+    try {
+      const response = await this.fetchWithAuth('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ streakDay: update })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to update streak', response.status);
+      }
+      
+      return {
+        data: update, // Return the updated streak day
+        status: response.status
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  // Penalty Task endpoints
+  async getPenaltyTasks(): Promise<ApiResponse<PenaltyTask[]>> {
+    try {
+      const response = await this.fetchWithAuth('/api/workouts');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to fetch penalty tasks', response.status);
+      }
+      
+      // Convert penalties object to array of PenaltyTask
+      const penalties = data.penalties || { pushups: 0, situps: 0, squats: 0, milesRan: 0 };
+      const penaltyTasks: PenaltyTask[] = [];
+      
+      if (penalties.pushups > 0) {
+        penaltyTasks.push({
+          id: 'pushups-penalty',
+          exercise: 'Push-ups',
+          count: penalties.pushups,
+          unit: 'reps'
+        });
+      }
+      
+      if (penalties.situps > 0) {
+        penaltyTasks.push({
+          id: 'situps-penalty',
+          exercise: 'Sit-ups',
+          count: penalties.situps,
+          unit: 'reps'
+        });
+      }
+      
+      if (penalties.squats > 0) {
+        penaltyTasks.push({
+          id: 'squats-penalty',
+          exercise: 'Squats',
+          count: penalties.squats,
+          unit: 'reps'
+        });
+      }
+      
+      if (penalties.milesRan > 0) {
+        penaltyTasks.push({
+          id: 'running-penalty',
+          exercise: 'Miles to run',
+          count: penalties.milesRan,
+          unit: 'miles'
+        });
+      }
+      
+      return {
+        data: penaltyTasks,
+        status: response.status
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  async updatePenaltyTask(id: string, updates: Partial<PenaltyTask>): Promise<ApiResponse<PenaltyTask>> {
+    // In a real implementation, we'd update the penalty task status
+    // For now, we just return the updated penalty task
+    try {
+      const task: PenaltyTask = {
+        id,
+        exercise: id.includes('pushups') ? 'Push-ups' : 
+                  id.includes('situps') ? 'Sit-ups' : 
+                  id.includes('squats') ? 'Squats' : 'Miles to run',
+        count: updates.count || 0,
+        unit: id.includes('running') ? 'miles' : 'reps'
+      };
+      
+      return {
+        data: task,
+        status: 200
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  // Bonus Task endpoints
+  async getBonusTasks(): Promise<ApiResponse<BonusTask[]>> {
+    try {
+      const response = await this.fetchWithAuth('/api/workouts');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to fetch bonus tasks', response.status);
+      }
+      
+      const bonusTasks: BonusTask[] = [];
+      
+      if (data.bonusTask) {
+        bonusTasks.push({
+          id: 'daily-bonus',
+          description: data.bonusTask,
+          completed: false
+        });
+      }
+      
+      return {
+        data: bonusTasks,
+        status: response.status
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  async updateBonusTask(id: string, updates: Partial<BonusTask>): Promise<ApiResponse<BonusTask>> {
+    try {
+      // For now, we just return the updated task
+      const task: BonusTask = {
+        id,
+        description: '',
+        completed: updates.completed || false
+      };
+      
+      return {
+        data: task,
+        status: 200
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  // Workout endpoints
+  async getTodayWorkout(): Promise<ApiResponse<Workout>> {
+    try {
+      const response = await this.fetchWithAuth('/api/workouts');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to fetch today\'s workout', response.status);
+      }
+      
+      return {
+        data: data as Workout,
+        status: response.status
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
+
+  async updateWorkoutProgress(exercises: Record<string, number>, completeBonusTask: boolean): Promise<ApiResponse<WorkoutResult>> {
+    try {
+      const response = await this.fetchWithAuth('/api/workouts', {
+        method: 'POST',
+        body: JSON.stringify({ exercises, completeBonusTask })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to update workout progress', response.status);
+      }
+      
+      return {
+        data: data as WorkoutResult,
+        status: response.status
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Network error', 500);
+    }
+  }
 }
 
 export const realApiService = new RealApiService(); 

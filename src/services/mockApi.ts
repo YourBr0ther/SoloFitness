@@ -424,6 +424,108 @@ export class MockApiService extends ApiService {
     };
   }
 
+  // Workout endpoints
+  async getTodayWorkout(): Promise<ApiResponse<Workout>> {
+    // Mock current level
+    const level = 1;
+    
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Calculate exercise requirements based on level
+    const requirements = {
+      pushups: 10 + (level * 5),
+      situps: 15 + (level * 5),
+      squats: 10 + (level * 3),
+      milesRan: Math.max(0.5, Math.floor((level / 3) * 10) / 10)
+    };
+    
+    // Random penalty (20% chance)
+    const hasPenalty = Math.random() < 0.2;
+    const penalties = hasPenalty ? {
+      pushups: 5,
+      situps: 5,
+      squats: 3,
+      milesRan: 0.1
+    } : {
+      pushups: 0,
+      situps: 0,
+      squats: 0,
+      milesRan: 0
+    };
+    
+    // Random bonus task (20% chance if no penalty)
+    const bonusTasks = [
+      "Meditate for 10 minutes",
+      "Drink an extra glass of water",
+      "Stretch for 5 minutes",
+      "Call a friend or family member",
+      "Write down 3 things you're grateful for"
+    ];
+    
+    const bonusTask = !hasPenalty && Math.random() < 0.2 ? 
+      bonusTasks[Math.floor(Math.random() * bonusTasks.length)] : null;
+    
+    return {
+      data: {
+        date: today,
+        completed: false,
+        level,
+        requirements,
+        currentProgress: {
+          pushups: 0,
+          situps: 0,
+          squats: 0,
+          milesRan: 0
+        },
+        penalties,
+        bonusTask,
+        hasPenalty
+      },
+      status: 200
+    };
+  }
+
+  async updateWorkoutProgress(exercises: Record<string, number>, completeBonusTask: boolean): Promise<ApiResponse<WorkoutResult>> {
+    // Mock level and requirements
+    const level = 1;
+    const requirements = {
+      pushups: 10 + (level * 5),
+      situps: 15 + (level * 5),
+      squats: 10 + (level * 3),
+      milesRan: Math.max(0.5, Math.floor((level / 3) * 10) / 10)
+    };
+    
+    // Check if requirements are met
+    const isCompleted = 
+      exercises.pushups >= requirements.pushups &&
+      exercises.situps >= requirements.situps &&
+      exercises.squats >= requirements.squats &&
+      exercises.milesRan >= requirements.milesRan;
+    
+    // Calculate XP based on completion and bonus
+    let xpEarned = isCompleted ? 50 : 0;
+    
+    // Add bonus XP for bonus task
+    if (completeBonusTask) {
+      xpEarned += 25;
+    }
+    
+    // Mock streak data
+    const currentStreak = isCompleted ? 1 : 0;
+    
+    return {
+      data: {
+        completed: isCompleted,
+        xpEarned,
+        currentStreak,
+        longestStreak: currentStreak,
+        level: isCompleted ? level + 1 : level
+      },
+      status: 200
+    };
+  }
+
   // Other endpoints can be implemented similarly
   // For brevity, I'm only implementing the most commonly used ones
   // You can add more mock data and implement other endpoints as needed

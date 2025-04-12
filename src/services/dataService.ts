@@ -5,6 +5,7 @@ import { Coach } from '@/types/coach';
 import { ExerciseProgress, PenaltyTask, BonusTask } from '@/types/journal';
 import { Exercise } from '@/types/exercise';
 import { Profile, StreakDay, GymBadge } from '@/types/profile';
+import { Workout } from '@/types/workout';
 
 // Use mock API service for development
 const apiService = process.env.NODE_ENV === 'development' ? mockApiService : realApiService;
@@ -165,6 +166,94 @@ class DataService {
 
     const response = await apiService.getBadges();
     cacheService.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  // Streak Data
+  async getStreakHistory(): Promise<StreakDay[]> {
+    const cacheKey = 'streakHistory';
+    const cached = cacheService.get<StreakDay[]>(cacheKey);
+    
+    if (cached) {
+      return cached.data;
+    }
+
+    const response = await apiService.getStreakHistory();
+    cacheService.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  async updateStreak(streak: StreakDay): Promise<StreakDay> {
+    const response = await apiService.updateStreak(streak);
+    // Invalidate streak history cache
+    cacheService.delete('streakHistory');
+    // Invalidate profile cache since streak affects it
+    cacheService.delete('profile');
+    return response.data;
+  }
+
+  // Penalty Tasks
+  async getPenaltyTasks(): Promise<PenaltyTask[]> {
+    const cacheKey = 'penaltyTasks';
+    const cached = cacheService.get<PenaltyTask[]>(cacheKey);
+    
+    if (cached) {
+      return cached.data;
+    }
+
+    const response = await apiService.getPenaltyTasks();
+    cacheService.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  async updatePenaltyTask(id: string, progress: number): Promise<PenaltyTask> {
+    const response = await apiService.updatePenaltyTask(id, { progress });
+    // Invalidate penalty tasks cache
+    cacheService.delete('penaltyTasks');
+    return response.data;
+  }
+
+  // Bonus Tasks
+  async getBonusTasks(): Promise<BonusTask[]> {
+    const cacheKey = 'bonusTasks';
+    const cached = cacheService.get<BonusTask[]>(cacheKey);
+    
+    if (cached) {
+      return cached.data;
+    }
+
+    const response = await apiService.getBonusTasks();
+    cacheService.set(cacheKey, response.data);
+    return response.data;
+  }
+
+  async updateBonusTask(id: string, completed: boolean): Promise<BonusTask> {
+    const response = await apiService.updateBonusTask(id, { completed });
+    // Invalidate bonus tasks cache
+    cacheService.delete('bonusTasks');
+    return response.data;
+  }
+
+  // Workout Data - New methods
+  async getTodayWorkout(): Promise<Workout> {
+    const cacheKey = 'todayWorkout';
+    const cached = cacheService.get<Workout>(cacheKey);
+    
+    if (cached) {
+      return cached.data;
+    }
+
+    const response = await apiService.getTodayWorkout();
+    cacheService.set(cacheKey, response.data, 60 * 1000); // Cache for only 1 minute to keep it fresh
+    return response.data;
+  }
+
+  async updateWorkoutProgress(exercises: any, completeBonusTask: boolean): Promise<any> {
+    const response = await apiService.updateWorkoutProgress(exercises, completeBonusTask);
+    // Invalidate caches that this affects
+    cacheService.delete('todayWorkout');
+    cacheService.delete('profile');
+    cacheService.delete('streakHistory');
     return response.data;
   }
 

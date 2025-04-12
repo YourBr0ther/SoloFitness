@@ -6,6 +6,7 @@ import { Coach } from '@/types/coach';
 import { Exercise, PenaltyTask, BonusTask } from '@/types/journal';
 import { Profile, StreakDay, GymBadge } from '@/types/profile';
 import { ApiError } from '@/types/errors';
+import { Workout } from '@/types/workout';
 
 interface DataContextType {
   // Coach Data
@@ -37,6 +38,13 @@ interface DataContextType {
   updatePenaltyTask: (taskId: string, progress: number) => Promise<void>;
   updateBonusTask: (taskId: string, completed: boolean) => Promise<void>;
   updateStreak: (update: StreakDay) => Promise<void>;
+
+  // Workout Data
+  todayWorkout: Workout | null;
+  isLoadingWorkout: boolean;
+  workoutError: ApiError | null;
+  loadTodayWorkout: () => Promise<void>;
+  updateWorkoutProgress: (exercises: Record<string, number>, completeBonusTask: boolean) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -61,6 +69,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [exerciseError, setExerciseError] = useState<ApiError | null>(null);
   const [penaltyTasks, setPenaltyTasks] = useState<PenaltyTask[]>([]);
   const [bonusTasks, setBonusTasks] = useState<BonusTask[]>([]);
+
+  // Workout State
+  const [todayWorkout, setTodayWorkout] = useState<Workout | null>(null);
+  const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
+  const [workoutError, setWorkoutError] = useState<ApiError | null>(null);
 
   // Coach Methods
   const loadCoaches = async () => {
@@ -159,6 +172,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ));
   };
 
+  // Workout Methods
+  const loadTodayWorkout = async () => {
+    try {
+      setIsLoadingWorkout(true);
+      setWorkoutError(null);
+      const workout = await dataService.getTodayWorkout();
+      setTodayWorkout(workout);
+    } catch (error) {
+      setWorkoutError(error as ApiError);
+    } finally {
+      setIsLoadingWorkout(false);
+    }
+  };
+
+  const updateWorkoutProgress = async (exercises: Record<string, number>, completeBonusTask: boolean) => {
+    try {
+      const result = await dataService.updateWorkoutProgress(exercises, completeBonusTask);
+      // Reload profile and workout data since they've been updated
+      await Promise.all([loadProfile(), loadTodayWorkout()]);
+      return result;
+    } catch (error) {
+      setWorkoutError(error as ApiError);
+      throw error;
+    }
+  };
+
   // Initial Data Loading
   useEffect(() => {
     loadCoaches();
@@ -196,6 +235,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updatePenaltyTask,
     updateBonusTask,
     updateStreak,
+
+    // Workout Data
+    todayWorkout,
+    isLoadingWorkout,
+    workoutError,
+    loadTodayWorkout,
+    updateWorkoutProgress,
   };
 
   return (

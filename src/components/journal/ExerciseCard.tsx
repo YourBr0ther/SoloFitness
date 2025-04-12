@@ -2,33 +2,25 @@
 
 import { Plus, Minus } from "lucide-react";
 import { Exercise } from "@/types/journal";
-import { useData } from '@/contexts/DataContext';
-import ErrorDisplay from '@/components/ui/ErrorDisplay';
 
 interface ExerciseCardProps {
   exercise: Exercise;
+  onUpdateCount: (count: number) => void;
 }
 
-const ExerciseCard = ({ exercise }: ExerciseCardProps) => {
-  const { updateExercise, exerciseError } = useData();
+const ExerciseCard = ({ exercise, onUpdateCount }: ExerciseCardProps) => {
   const progressPercentage = (exercise.count / exercise.dailyGoal) * 100;
   const progressText = `${Math.round(progressPercentage)}% complete`;
 
-  const handleIncrement = async () => {
-    try {
-      await updateExercise(exercise.id, exercise.count + (exercise.increment || 1));
-    } catch (error) {
-      console.error('Failed to update exercise:', error);
-    }
+  const handleIncrement = () => {
+    const increment = exercise.increment || 1;
+    onUpdateCount(parseFloat((exercise.count + increment).toFixed(2)));
   };
 
-  const handleDecrement = async () => {
+  const handleDecrement = () => {
     if (exercise.count <= 0) return;
-    try {
-      await updateExercise(exercise.id, exercise.count - (exercise.increment || 1));
-    } catch (error) {
-      console.error('Failed to update exercise:', error);
-    }
+    const increment = exercise.increment || 1;
+    onUpdateCount(parseFloat((exercise.count - increment).toFixed(2)));
   };
 
   return (
@@ -36,16 +28,7 @@ const ExerciseCard = ({ exercise }: ExerciseCardProps) => {
       className="bg-gray-900 rounded-lg p-4"
       role="region"
       aria-label={`${exercise.name} progress`}
-    >
-      {exerciseError && (
-        <div className="mb-2">
-          <ErrorDisplay 
-            error={exerciseError} 
-            onRetry={() => updateExercise(exercise.id, exercise.count)}
-          />
-        </div>
-      )}
-      
+    >      
       <div className="flex justify-between items-center mb-2">
         <div>
           <h3 className="font-medium text-white">{exercise.name}</h3>
