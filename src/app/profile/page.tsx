@@ -353,6 +353,16 @@ export default function ProfilePage() {
     router.push('/login');
   };
 
+  // Add a function to handle opening the sign out confirmation dialog
+  const handleOpenSignOutConfirm = () => {
+    setShowSignOutConfirm(true);
+  };
+
+  // Add a function to handle canceling sign out
+  const handleCancelSignOut = () => {
+    setShowSignOutConfirm(false);
+  };
+
   // Handle opening badges and marking them as viewed
   const handleOpenBadges = async () => {
     setShowBadges(true);
@@ -737,18 +747,15 @@ export default function ProfilePage() {
         {showAPIKey && (
           <APIKeyPopup
             apiKey={profile.apiKey}
-            onClose={() => setShowAPIKey(false)}
             onSave={handleSaveAPIKey}
+            onClose={() => setShowAPIKey(false)}
           />
         )}
 
         {showSignOutConfirm && (
-          <SignOutConfirmation
-            onConfirm={() => {
-              handleSignOut();
-              setShowSignOutConfirm(false);
-            }}
-            onCancel={() => setShowSignOutConfirm(false)}
+          <SignOutConfirmation 
+            onConfirm={handleSignOut} 
+            onCancel={handleCancelSignOut} 
           />
         )}
 
@@ -763,7 +770,7 @@ export default function ProfilePage() {
             <span>API Key</span>
           </button>
           <button
-            onClick={() => setShowSignOutConfirm(true)}
+            onClick={handleOpenSignOutConfirm}
             className="flex items-center space-x-2 px-4 py-2 text-red-500 border border-red-500 rounded-lg transition-colors hover:bg-red-500 hover:bg-opacity-10"
             aria-label="Sign out"
           >

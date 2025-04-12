@@ -6,8 +6,8 @@ import { prisma } from '@/lib/prisma';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Utility function for auth within this file
-function getAuthToken() {
-  const headersList = headers();
+async function getAuthToken() {
+  const headersList = await headers();
   const authorization = headersList.get('Authorization');
   
   if (!authorization?.startsWith('Bearer ')) {
@@ -26,7 +26,7 @@ function getAuthToken() {
 // GET /api/profile - Get user profile
 export async function GET() {
   // Get auth token
-  const decoded = getAuthToken();
+  const decoded = await getAuthToken();
   
   if (!decoded) {
     return NextResponse.json(
@@ -118,7 +118,7 @@ export async function GET() {
 // PUT /api/profile - Update user profile
 export async function PUT(request: Request) {
   // Get auth token
-  const decoded = getAuthToken();
+  const decoded = await getAuthToken();
   
   if (!decoded) {
     return NextResponse.json(
