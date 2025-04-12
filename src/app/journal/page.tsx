@@ -8,22 +8,58 @@ import PenaltyTask from "@/components/journal/PenaltyTask";
 import BonusTask from "@/components/journal/BonusTask";
 import StreakPopup from "@/components/journal/StreakPopup";
 import { Exercise, PenaltyTask as PenaltyTaskType, BonusTask as BonusTaskType } from "@/types/journal";
-import { EXERCISES, MOCK_PENALTY, MOCK_BONUS } from "@/data/journal";
+import { useData } from '@/contexts/DataContext';
+import ErrorDisplay from '@/components/ui/ErrorDisplay';
+import { User } from '@/types/user';
 
 export default function JournalPage() {
-  const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
+  const { 
+    exercises, 
+    loadExercises, 
+    exerciseError,
+    updateExercise,
+    profile,
+    loadProfile,
+    profileError
+  } = useData();
+  
   const [showCompleteButton, setShowCompleteButton] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
-  const [streakCount, setStreakCount] = useState(7);
   const [isPulsing, setIsPulsing] = useState(false);
-  const [dailyXP, setDailyXP] = useState(150);
   const [hasPenalty, setHasPenalty] = useState(true);
-  const [penaltyTask, setPenaltyTask] = useState<PenaltyTaskType>(MOCK_PENALTY);
-  const [bonusTask, setBonusTask] = useState<BonusTaskType>(MOCK_BONUS);
+  const [penaltyTask, setPenaltyTask] = useState<PenaltyTaskType>({
+    id: '1',
+    exercise: 'Push-ups',
+    count: 20,
+    unit: 'reps'
+  });
+  const [bonusTask, setBonusTask] = useState<BonusTaskType>({
+    id: '1',
+    description: 'Complete an extra set of exercises',
+    completed: false
+  });
   const [showBonus, setShowBonus] = useState(!hasPenalty);
   const [penaltyProgress, setPenaltyProgress] = useState(0);
   const [showPenaltyComplete, setShowPenaltyComplete] = useState(false);
   const [isPenaltyTransitioning, setIsPenaltyTransitioning] = useState(false);
+  const [penalties, setPenalties] = useState<number>(0);
+  const [bonuses, setBonuses] = useState<number>(0);
+
+  useEffect(() => {
+    loadExercises();
+    loadProfile();
+  }, [loadExercises, loadProfile]);
+
+  useEffect(() => {
+    if (profile?.streakHistory) {
+      const completedDays = profile.streakHistory.filter(day => day.completed).length;
+      const totalDays = profile.streakHistory.length;
+      setPenalties(totalDays - completedDays);
+      setBonuses(completedDays);
+      setHasPenalty(totalDays > completedDays);
+      setShowBonus(completedDays > 0);
+    }
+  }, [profile]);
 
   // Check if all exercises have met their daily goals
   useEffect(() => {
@@ -54,30 +90,6 @@ export default function JournalPage() {
     }
   }, [penaltyProgress, penaltyTask.count]);
 
-  const handleIncrement = (id: string) => {
-    setExercises(exercises.map(exercise => {
-      if (exercise.id === id) {
-        const increment = exercise.increment || 1;
-        // Round to 1 decimal place for floating point precision
-        const newCount = Math.round((exercise.count + increment) * 10) / 10;
-        return { ...exercise, count: newCount };
-      }
-      return exercise;
-    }));
-  };
-
-  const handleDecrement = (id: string) => {
-    setExercises(exercises.map(exercise => {
-      if (exercise.id === id && exercise.count > 0) {
-        const increment = exercise.increment || 1;
-        // Round to 1 decimal place for floating point precision
-        const newCount = Math.round((exercise.count - increment) * 10) / 10;
-        return { ...exercise, count: Math.max(0, newCount) };
-      }
-      return exercise;
-    }));
-  };
-
   const handleIncrementPenalty = () => {
     setPenaltyProgress(prev => Math.min(prev + 1, penaltyTask.count));
   };
@@ -104,7 +116,9 @@ export default function JournalPage() {
     setTimeout(() => {
       setShowStreakPopup(false);
       // Reset exercises after popup closes
-      setExercises(EXERCISES.map(exercise => ({ ...exercise, count: 0 })));
+      exercises.forEach(exercise => {
+        updateExercise(exercise.id, 0);
+      });
     }, 3000);
   };
 
@@ -117,6 +131,75 @@ export default function JournalPage() {
     setBonusTask({ ...bonusTask, completed: true });
   };
 
+  // Calculate streak count from streakHistory
+  const calculateStreakCount = () => {
+    if (!profile?.streakHistory) return 0;
+    let currentStreak = 0;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if today is completed
+    const todayEntry = profile.streakHistory.find(day => day.date === today);
+    if (todayEntry?.completed) {
+      currentStreak++;
+    }
+    
+    // Check previous days
+    for (let i = 1; i < profile.streakHistory.length; i++) {
+      const day = profile.streakHistory[i];
+      if (day.completed) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+    
+    return currentStreak;
+  };
+
+  // Calculate daily XP from streakHistory
+  const calculateDailyXP = () => {
+    if (!profile?.streakHistory) return 0;
+    const today = new Date().toISOString().split('T')[0];
+    const todayEntry = profile.streakHistory.find(day => day.date === today);
+    return todayEntry?.xpEarned || 0;
+  };
+
+  // Calculate level and XP progress
+  const calculateLevelAndXP = () => {
+    if (!profile?.streakHistory) return { level: 1, currentXP: 0, maxXP: 100 };
+    
+    const totalXP = profile.streakHistory.reduce((sum, day) => sum + day.xpEarned, 0);
+    const level = Math.floor(totalXP / 100) + 1;
+    const currentXP = totalXP % 100;
+    const maxXP = 100;
+    
+    return { level, currentXP, maxXP };
+  };
+
+  if (exerciseError || profileError) {
+    return (
+      <div className="p-4">
+        {exerciseError && (
+          <ErrorDisplay 
+            error={exerciseError} 
+            onRetry={loadExercises}
+            className="mb-4"
+          />
+        )}
+        {profileError && (
+          <ErrorDisplay 
+            error={profileError} 
+            onRetry={loadProfile}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const { level, currentXP, maxXP } = calculateLevelAndXP();
+  const streakCount = calculateStreakCount();
+  const dailyXP = calculateDailyXP();
+
   return (
     <>
       <main 
@@ -126,9 +209,16 @@ export default function JournalPage() {
           ${showPenaltyComplete ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
       >
         <div className="w-full max-w-4xl space-y-4">
-          <HeaderSection streakCount={streakCount} dailyXP={dailyXP} />
+          <HeaderSection 
+            streakCount={streakCount} 
+            dailyXP={dailyXP} 
+          />
           
-          <LevelProgress currentLevel={1} currentXP={0} maxXP={100} />
+          <LevelProgress 
+            currentLevel={level} 
+            currentXP={currentXP} 
+            maxXP={maxXP} 
+          />
 
           {/* Daily Tasks Section */}
           <div className="space-y-4">
@@ -136,8 +226,6 @@ export default function JournalPage() {
               <ExerciseCard
                 key={exercise.id}
                 exercise={exercise}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
               />
             ))}
           </div>

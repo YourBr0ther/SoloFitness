@@ -1,4 +1,4 @@
-export interface Exercise {
+export interface ExerciseProgress {
   id: string;
   name: string;
   count: number;
@@ -8,12 +8,14 @@ export interface Exercise {
 }
 
 export interface PenaltyTask {
+  id: string;
   exercise: string;
   count: number;
   unit: string;
 }
 
 export interface BonusTask {
+  id: string;
   description: string;
   completed: boolean;
 } 
