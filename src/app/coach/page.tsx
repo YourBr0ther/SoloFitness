@@ -1,21 +1,13 @@
 "use client";
 
 import { useState } from 'react';
+import { Coach } from "@/types/coach";
+import { COACHES } from "@/data/coaches";
 import CoachSelector from '@/components/coach/CoachSelector';
 import ChatInterface from '@/components/coach/ChatInterface';
 
 export default function CoachPage() {
-  const [selectedCoach, setSelectedCoach] = useState<{
-    id: string;
-    name: string;
-    description: string;
-    avatar: string;
-  }>({
-    id: '1',
-    name: 'Coach Alex',
-    description: 'Motivational and encouraging coach',
-    avatar: '/coaches/alex.png'
-  });
+  const [selectedCoach, setSelectedCoach] = useState<Coach>(COACHES[0]);
   const [isChangingCoach, setIsChangingCoach] = useState(false);
 
   return (
@@ -27,19 +19,21 @@ export default function CoachPage() {
           onClick={() => setIsChangingCoach(true)}
           className="text-gray-400 hover:text-white transition-colors"
         >
-          Coaches
+          Change Coach
         </button>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         {isChangingCoach ? (
-          <div className="p-4">
-            <CoachSelector 
-              onSelectCoach={setSelectedCoach} 
-              isChangingCoach={true}
-              onClose={() => setIsChangingCoach(false)}
-            />
+          <div className="h-full overflow-y-auto">
+            <div className="p-4">
+              <CoachSelector 
+                onSelectCoach={setSelectedCoach} 
+                isChangingCoach={true}
+                onClose={() => setIsChangingCoach(false)}
+              />
+            </div>
           </div>
         ) : (
           <ChatInterface 

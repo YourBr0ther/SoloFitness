@@ -1,32 +1,7 @@
 import { useState } from 'react';
-
-interface Coach {
-  id: string;
-  name: string;
-  description: string;
-  avatar: string;
-}
-
-const COACHES: Coach[] = [
-  {
-    id: '1',
-    name: 'Coach Alex',
-    description: 'Motivational and encouraging coach',
-    avatar: '/coaches/alex.png'
-  },
-  {
-    id: '2',
-    name: 'Coach Sarah',
-    description: 'Technical and precise coach',
-    avatar: '/coaches/sarah.png'
-  },
-  {
-    id: '3',
-    name: 'Coach Mike',
-    description: 'Tough love and results-driven coach',
-    avatar: '/coaches/mike.png'
-  }
-];
+import { Coach } from "@/types/coach";
+import { COACHES } from "@/data/coaches";
+import CoachPreview from './CoachPreview';
 
 interface CoachSelectorProps {
   onSelectCoach: (coach: Coach) => void;
@@ -44,7 +19,7 @@ export default function CoachSelector({ onSelectCoach, isChangingCoach, onClose 
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold text-[#00A8FF]">Select Your Coach</h2>
         {isChangingCoach && (
@@ -56,26 +31,32 @@ export default function CoachSelector({ onSelectCoach, isChangingCoach, onClose 
           </button>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {COACHES.map((coach) => (
-          <button
-            key={coach.id}
-            onClick={() => handleSelectCoach(coach)}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              selectedCoach?.id === coach.id
-                ? 'border-[#00A8FF] bg-gray-800'
-                : 'border-gray-700 hover:border-[#00A8FF]'
-            }`}
-          >
-            <div className="flex flex-col items-center space-y-2">
-              <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center">
-                <span className="text-2xl">👤</span>
-              </div>
-              <h3 className="font-medium">{coach.name}</h3>
-              <p className="text-sm text-gray-400 text-center">{coach.description}</p>
-            </div>
-          </button>
-        ))}
+
+      {/* Selected Coach Preview */}
+      {selectedCoach && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-400 mb-3">Selected Coach</h3>
+          <CoachPreview 
+            coach={selectedCoach} 
+            isSelected={true}
+            showActions={false}
+          />
+        </div>
+      )}
+
+      {/* Available Coaches */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-gray-400">Available Coaches</h3>
+        <div className="grid grid-cols-1 gap-4">
+          {COACHES.map((coach) => (
+            <CoachPreview
+              key={coach.id}
+              coach={coach}
+              onSelect={() => handleSelectCoach(coach)}
+              isSelected={selectedCoach?.id === coach.id}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
