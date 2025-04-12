@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { User } from "lucide-react";
 
 interface Message {
   id: string;
@@ -57,16 +58,16 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-gray-950">
       {/* Coach Info Bar */}
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-            <span className="text-xl">👤</span>
+      <div className="bg-gray-900 p-3 border-b border-gray-800">
+        <div className="flex items-start space-x-3">
+          <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center border border-[#00A8FF]">
+            <User size={16} className="text-[#00A8FF]" />
           </div>
-          <div>
-            <h3 className="font-medium">{selectedCoach.name}</h3>
-            <p className="text-sm text-gray-400">{selectedCoach.description}</p>
+          <div className="flex-1">
+            <h3 className="text-white font-medium">{selectedCoach.name}</h3>
+            <p className="text-gray-400 text-sm leading-snug">{selectedCoach.description}</p>
           </div>
         </div>
       </div>
@@ -84,10 +85,10 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
               className={`max-w-[70%] rounded-lg p-3 ${
                 message.sender === 'user'
                   ? 'bg-[#00A8FF] text-white'
-                  : 'bg-gray-700 text-gray-200'
+                  : 'bg-gray-800 text-gray-200'
               }`}
             >
-              <p>{message.text}</p>
+              <p className="text-sm">{message.text}</p>
               <span className="text-xs opacity-70 mt-1 block">
                 {message.timestamp.toLocaleTimeString()}
               </span>
@@ -98,23 +99,23 @@ export default function ChatInterface({ selectedCoach, onRequestChangeCoach }: C
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-700">
-        <div className="flex space-x-2">
+      <div className="p-4 bg-gray-900">
+        <form onSubmit={handleSendMessage} className="flex space-x-2">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A8FF]"
+            className="flex-1 bg-gray-800 text-white rounded px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#00A8FF]"
           />
           <button
             type="submit"
-            className="bg-[#00A8FF] text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors"
+            className="bg-[#00A8FF] text-white px-4 py-2 rounded text-sm font-medium hover:bg-opacity-90 transition-colors"
           >
             Send
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 } 
