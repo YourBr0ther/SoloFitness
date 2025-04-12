@@ -26,16 +26,21 @@ model User {
 }
 
 model Profile {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @unique @db.ObjectId
-  avatarUrl String?
-  level     Int      @default(1)
-  xp        Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique @db.ObjectId
+  avatarUrl       String?
+  level           Int      @default(1)
+  xp              Int      @default(0)
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
+  exerciseCounts  Json?    // Stores counts for different exercise types: {pushups: 0, situps: 0, squats: 0, milesRan: 0}
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  streakHistory  StreakHistory[]
+  badges         Badge[]
 }
 
 model Exercise {
@@ -88,14 +93,48 @@ model WorkoutExercise {
 }
 
 model UserSettings {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String   @unique @db.ObjectId
-  enableNotifications Boolean @default(true)
-  darkMode          Boolean  @default(false)
-  language          String   @default("en")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @unique @db.ObjectId
+  enableNotifications Boolean  @default(true)
+  darkMode            Boolean  @default(false)
+  language            String   @default("en")
+  enablePenalties     Boolean  @default(true)
+  enableBonuses       Boolean  @default(true)
+  reminderTimes       String[] @default([]) // Store notification times as strings (e.g. "09:00", "18:00")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // Relations
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StreakHistory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  profileId   String   @db.ObjectId
+  date        String   // Store date as string in YYYY-MM-DD format
+  completed   Boolean  @default(false)
+  xpEarned    Int      @default(0)
+  exercises   Json     // Stores exercise counts for the day: {pushups: 0, situps: 0, squats: 0, milesRan: 0}
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  profileId   String   @db.ObjectId
+  name        String
+  description String
+  icon        String
+  unlocked    Boolean  @default(false)
+  progress    Int      @default(0)
+  total       Int
+  isNew       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 } 

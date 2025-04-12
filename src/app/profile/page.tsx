@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Profile } from "@/types/profile";
+import { useState, useEffect } from "react";
+import { Profile, StreakDay, NotificationTime, GymBadge } from "@/types/profile";
 import { MOCK_PROFILE } from "@/data/profile";
 import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award, Plus, Trash2, Key } from "lucide-react";
 import Image from "next/image";
@@ -10,11 +10,27 @@ import ProfileStats from "@/components/profile/ProfileStats";
 import BadgesPopup from "@/components/profile/BadgesPopup";
 import APIKeyPopup from "@/components/profile/APIKeyPopup";
 import SignOutConfirmation from "@/components/profile/SignOutConfirmation";
+import { useRouter } from "next/navigation";
+
+// Default profile structure for initialization
+const defaultProfile: Profile = {
+  id: "",
+  username: "",
+  avatarUrl: "/default-avatar.svg",
+  streakHistory: [],
+  notifications: [],
+  preferences: {
+    enablePenalties: true,
+    enableBonuses: true
+  },
+  badges: [],
+  apiKey: ""
+};
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
+  const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [isEditingUsername, setIsEditingUsername] = useState(false);
-  const [tempUsername, setTempUsername] = useState(profile.username);
+  const [tempUsername, setTempUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
   const [tempTime, setTempTime] = useState("");
@@ -22,6 +38,144 @@ export default function ProfilePage() {
   const [showBadges, setShowBadges] = useState(false);
   const [showAPIKey, setShowAPIKey] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  
+  const router = useRouter();
+
+  // Load profile data from API
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+
+        const response = await fetch('/api/profile', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            // Unauthorized, redirect to login
+            localStorage.removeItem('token');
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to fetch profile');
+        }
+
+        const data = await response.json();
+        
+        // Transform API data to match our Profile type
+        const transformedProfile: Profile = {
+          id: data.id,
+          username: data.username,
+          avatarUrl: data.profile?.avatarUrl || "/default-avatar.svg",
+          // Transform streak history
+          streakHistory: data.profile?.streakHistory?.map((day: any) => ({
+            id: day.id,
+            date: day.date,
+            completed: day.completed,
+            xpEarned: day.xpEarned,
+            exercises: day.exercises
+          })) || [],
+          // Create notification objects from reminderTimes array
+          notifications: (data.settings?.reminderTimes || []).map((time: string, index: number) => ({
+            id: `notification-${index}`,
+            time,
+            enabled: data.settings.enableNotifications
+          })),
+          // Transform preferences
+          preferences: {
+            enablePenalties: data.settings?.enablePenalties ?? true,
+            enableBonuses: data.settings?.enableBonuses ?? true
+          },
+          // Transform badges
+          badges: data.profile?.badges?.map((badge: any) => ({
+            id: badge.id,
+            name: badge.name,
+            description: badge.description,
+            icon: badge.icon,
+            unlocked: badge.unlocked,
+            progress: badge.progress,
+            total: badge.total,
+            isNew: badge.isNew
+          })) || [],
+          apiKey: "" // We don't store API keys on the server
+        };
+
+        setProfile(transformedProfile);
+        setTempUsername(transformedProfile.username);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [router]);
+
+  // Save profile changes to the API
+  const saveProfileChanges = async (updatedProfile: Partial<Profile>, updatedSettings?: any) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      // Transform Profile data to match API expectations
+      const apiData: any = {};
+      
+      if (updatedProfile.username) {
+        apiData.username = updatedProfile.username;
+      }
+      
+      if (updatedProfile) {
+        apiData.profile = {
+          avatarUrl: updatedProfile.avatarUrl,
+          // Include other profile fields if needed
+        };
+      }
+      
+      if (updatedSettings || updatedProfile.notifications || updatedProfile.preferences) {
+        apiData.settings = {
+          ...(updatedSettings || {}),
+          enableNotifications: updatedProfile.notifications?.some(n => n.enabled) ?? true,
+          reminderTimes: updatedProfile.notifications?.map(n => n.time) || [],
+          enablePenalties: updatedProfile.preferences?.enablePenalties,
+          enableBonuses: updatedProfile.preferences?.enableBonuses
+        };
+      }
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(apiData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Update was successful, can process any additional logic here
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError('Failed to save changes. Please try again later.');
+    }
+  };
 
   // Get the last two weeks of dates
   const getLastTwoWeeks = () => {
@@ -76,37 +230,54 @@ export default function ProfilePage() {
     setUsernameError(validateUsername(newUsername));
   };
 
-  const handleUsernameSave = () => {
+  const handleUsernameSave = async () => {
     const error = validateUsername(tempUsername);
     if (error) {
       setUsernameError(error);
       return;
     }
-    setProfile({ ...profile, username: tempUsername });
+    
+    const updatedProfile = { ...profile, username: tempUsername };
+    setProfile(updatedProfile);
     setIsEditingUsername(false);
     setUsernameError("");
+    
+    // Save to API
+    await saveProfileChanges({ username: tempUsername });
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile({ ...profile, avatarUrl: reader.result as string });
+      reader.onloadend = async () => {
+        const avatarUrl = reader.result as string;
+        const updatedProfile = { ...profile, avatarUrl };
+        setProfile(updatedProfile);
+        
+        // Save to API
+        await saveProfileChanges({ avatarUrl });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const toggleNotification = (id: string) => {
-    setProfile({
+  const toggleNotification = async (id: string) => {
+    const updatedNotifications = profile.notifications.map(notification =>
+      notification.id === id
+        ? { ...notification, enabled: !notification.enabled }
+        : notification
+    );
+    
+    const updatedProfile = {
       ...profile,
-      notifications: profile.notifications.map(notification =>
-        notification.id === id
-          ? { ...notification, enabled: !notification.enabled }
-          : notification
-      ),
-    });
+      notifications: updatedNotifications
+    };
+    
+    setProfile(updatedProfile);
+    
+    // Save to API
+    await saveProfileChanges({ notifications: updatedNotifications });
   };
 
   const formatTimeForDisplay = (time: string) => {
@@ -134,18 +305,25 @@ export default function ProfilePage() {
     setTempTime(e.target.value);
   };
 
-  const saveTimeChange = () => {
+  const saveTimeChange = async () => {
     if (!editingTimeId) return;
 
-    setProfile({
+    const updatedNotifications = profile.notifications.map(notification =>
+      notification.id === editingTimeId
+        ? { ...notification, time: tempTime }
+        : notification
+    );
+    
+    const updatedProfile = {
       ...profile,
-      notifications: profile.notifications.map(notification =>
-        notification.id === editingTimeId
-          ? { ...notification, time: tempTime }
-          : notification
-      ),
-    });
+      notifications: updatedNotifications
+    };
+    
+    setProfile(updatedProfile);
     setEditingTimeId(null);
+    
+    // Save to API
+    await saveProfileChanges({ notifications: updatedNotifications });
   };
 
   const cancelTimeEdit = () => {
@@ -153,40 +331,85 @@ export default function ProfilePage() {
     setTempTime("");
   };
 
-  const togglePreference = (key: keyof Profile['preferences']) => {
-    setProfile({
+  const togglePreference = async (key: keyof Profile['preferences']) => {
+    const updatedPreferences = {
+      ...profile.preferences,
+      [key]: !profile.preferences[key]
+    };
+    
+    const updatedProfile = {
       ...profile,
-      preferences: {
-        ...profile.preferences,
-        [key]: !profile.preferences[key],
-      },
-    });
+      preferences: updatedPreferences
+    };
+    
+    setProfile(updatedProfile);
+    
+    // Save to API
+    await saveProfileChanges({ preferences: updatedPreferences });
   };
 
   const handleSignOut = () => {
-    // TODO: Implement sign out logic
-    console.log("Signing out...");
+    localStorage.removeItem('token');
+    router.push('/login');
   };
 
   // Handle opening badges and marking them as viewed
-  const handleOpenBadges = () => {
+  const handleOpenBadges = async () => {
     setShowBadges(true);
+    
     // Mark all badges as viewed
     if (hasNewBadges) {
+      const updatedBadges = profile.badges.map(badge => ({
+        ...badge,
+        isNew: false
+      }));
+      
       const updatedProfile = {
         ...profile,
-        badges: profile.badges.map(badge => ({
-          ...badge,
-          isNew: false
-        }))
+        badges: updatedBadges
       };
+      
       setProfile(updatedProfile);
+      
+      // Save badge updates to API
+      for (const badge of updatedBadges.filter(b => b.isNew === false)) {
+        await saveProfileChanges({}, { badge });
+      }
     }
   };
 
   const handleSaveAPIKey = (newKey: string) => {
     setProfile({ ...profile, apiKey: newKey });
+    // Don't save API key to server - it should only be stored locally
+    localStorage.setItem('apiKey', newKey);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl mb-4">Loading profile...</p>
+          <div className="w-12 h-12 rounded-full border-4 border-t-[#00A8FF] border-r-transparent border-b-transparent border-l-transparent animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <div className="text-center max-w-lg">
+          <p className="text-xl mb-4 text-red-500">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[#00A8FF] text-white rounded-lg"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-white p-4">

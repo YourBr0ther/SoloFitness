@@ -50,14 +50,49 @@ export async function GET() {
           select: {
             level: true,
             xp: true,
-            avatarUrl: true
+            avatarUrl: true,
+            currentStreak: true,
+            longestStreak: true,
+            exerciseCounts: true,
+            streakHistory: {
+              select: {
+                id: true,
+                date: true,
+                completed: true,
+                xpEarned: true,
+                exercises: true,
+                createdAt: true,
+                updatedAt: true
+              },
+              orderBy: {
+                date: 'desc'
+              },
+              take: 14 // Get the last 14 days for the streak calendar
+            },
+            badges: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                icon: true,
+                unlocked: true,
+                progress: true,
+                total: true,
+                isNew: true,
+                createdAt: true,
+                updatedAt: true
+              }
+            }
           }
         },
         settings: {
           select: {
             enableNotifications: true,
             darkMode: true,
-            language: true
+            language: true,
+            enablePenalties: true,
+            enableBonuses: true,
+            reminderTimes: true
           }
         }
       }
@@ -94,7 +129,7 @@ export async function PUT(request: Request) {
 
   try {
     const userId = decoded.userId;
-    const { username, profile, settings } = await request.json();
+    const { username, profile, settings, streakDay, badge } = await request.json();
     
     // Update user in a transaction to ensure all related data is updated
     const updatedUser = await prisma.$transaction(async (tx) => {
@@ -131,6 +166,15 @@ export async function PUT(request: Request) {
         }
       });
       
+      // Get the current user profile
+      const userProfile = await tx.profile.findUnique({
+        where: { userId },
+        include: {
+          streakHistory: true,
+          badges: true
+        }
+      });
+      
       // Update profile if provided
       if (profile) {
         await tx.profile.upsert({
@@ -139,14 +183,79 @@ export async function PUT(request: Request) {
             userId,
             level: profile.level ?? 1,
             xp: profile.xp ?? 0,
-            avatarUrl: profile.avatarUrl
+            avatarUrl: profile.avatarUrl,
+            currentStreak: profile.currentStreak ?? 0,
+            longestStreak: profile.longestStreak ?? 0,
+            exerciseCounts: profile.exerciseCounts ?? { pushups: 0, situps: 0, squats: 0, milesRan: 0 }
           },
           update: {
             level: profile.level,
             xp: profile.xp,
-            avatarUrl: profile.avatarUrl
+            avatarUrl: profile.avatarUrl,
+            currentStreak: profile.currentStreak,
+            longestStreak: profile.longestStreak,
+            exerciseCounts: profile.exerciseCounts
           }
         });
+      }
+      
+      // Add streak day if provided
+      if (streakDay && userProfile) {
+        const existingDay = userProfile.streakHistory.find(day => day.date === streakDay.date);
+        
+        if (existingDay) {
+          // Update existing streak day
+          await tx.streakHistory.update({
+            where: { id: existingDay.id },
+            data: {
+              completed: streakDay.completed,
+              xpEarned: streakDay.xpEarned,
+              exercises: streakDay.exercises
+            }
+          });
+        } else {
+          // Create new streak day
+          await tx.streakHistory.create({
+            data: {
+              profileId: userProfile.id,
+              date: streakDay.date,
+              completed: streakDay.completed,
+              xpEarned: streakDay.xpEarned,
+              exercises: streakDay.exercises
+            }
+          });
+        }
+      }
+      
+      // Update badge if provided
+      if (badge && userProfile) {
+        const existingBadge = userProfile.badges.find(b => b.name === badge.name);
+        
+        if (existingBadge) {
+          // Update existing badge
+          await tx.badge.update({
+            where: { id: existingBadge.id },
+            data: {
+              unlocked: badge.unlocked,
+              progress: badge.progress,
+              isNew: badge.isNew
+            }
+          });
+        } else {
+          // Create new badge
+          await tx.badge.create({
+            data: {
+              profileId: userProfile.id,
+              name: badge.name,
+              description: badge.description,
+              icon: badge.icon,
+              unlocked: badge.unlocked,
+              progress: badge.progress,
+              total: badge.total,
+              isNew: badge.isNew ?? true
+            }
+          });
+        }
       }
       
       // Update settings if provided
@@ -157,12 +266,18 @@ export async function PUT(request: Request) {
             userId,
             enableNotifications: settings.enableNotifications ?? true,
             darkMode: settings.darkMode ?? false,
-            language: settings.language ?? 'en'
+            language: settings.language ?? 'en',
+            enablePenalties: settings.enablePenalties ?? true,
+            enableBonuses: settings.enableBonuses ?? true,
+            reminderTimes: settings.reminderTimes ?? []
           },
           update: {
             enableNotifications: settings.enableNotifications,
             darkMode: settings.darkMode,
-            language: settings.language
+            language: settings.language,
+            enablePenalties: settings.enablePenalties,
+            enableBonuses: settings.enableBonuses,
+            reminderTimes: settings.reminderTimes
           }
         });
       }
@@ -183,14 +298,49 @@ export async function PUT(request: Request) {
           select: {
             level: true,
             xp: true,
-            avatarUrl: true
+            avatarUrl: true,
+            currentStreak: true,
+            longestStreak: true,
+            exerciseCounts: true,
+            streakHistory: {
+              select: {
+                id: true,
+                date: true,
+                completed: true,
+                xpEarned: true,
+                exercises: true,
+                createdAt: true,
+                updatedAt: true
+              },
+              orderBy: {
+                date: 'desc'
+              },
+              take: 14 // Get the last 14 days for the streak calendar
+            },
+            badges: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                icon: true,
+                unlocked: true,
+                progress: true,
+                total: true,
+                isNew: true,
+                createdAt: true,
+                updatedAt: true
+              }
+            }
           }
         },
         settings: {
           select: {
             enableNotifications: true,
             darkMode: true,
-            language: true
+            language: true,
+            enablePenalties: true,
+            enableBonuses: true,
+            reminderTimes: true
           }
         }
       }

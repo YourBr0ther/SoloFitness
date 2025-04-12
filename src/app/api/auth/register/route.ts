@@ -45,14 +45,84 @@ export async function POST(request: Request) {
         profile: {
           create: {
             level: 1,
-            xp: 0
+            xp: 0,
+            currentStreak: 0,
+            longestStreak: 0,
+            exerciseCounts: {
+              pushups: 0,
+              situps: 0,
+              squats: 0,
+              milesRan: 0
+            },
+            // Initialize a week of streak history
+            streakHistory: {
+              create: Array.from({ length: 7 }, (_, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                return {
+                  date: date.toISOString().split('T')[0],
+                  completed: false,
+                  xpEarned: 0,
+                  exercises: {
+                    pushups: 0,
+                    situps: 0,
+                    squats: 0,
+                    milesRan: 0
+                  }
+                };
+              })
+            },
+            // Initialize some starter badges
+            badges: {
+              create: [
+                {
+                  name: "First Login",
+                  description: "Logged in for the first time",
+                  icon: "🏆",
+                  unlocked: true,
+                  progress: 1,
+                  total: 1,
+                  isNew: true
+                },
+                {
+                  name: "Push-up Novice",
+                  description: "Complete 100 push-ups",
+                  icon: "💪",
+                  unlocked: false,
+                  progress: 0,
+                  total: 100,
+                  isNew: false
+                },
+                {
+                  name: "Running Start",
+                  description: "Run 10 miles total",
+                  icon: "🏃",
+                  unlocked: false,
+                  progress: 0,
+                  total: 10,
+                  isNew: false
+                },
+                {
+                  name: "Consistency",
+                  description: "Maintain a 7-day streak",
+                  icon: "🔥",
+                  unlocked: false,
+                  progress: 0,
+                  total: 7,
+                  isNew: false
+                }
+              ]
+            }
           }
         },
         settings: {
           create: {
             enableNotifications: true,
             darkMode: false,
-            language: 'en'
+            language: 'en',
+            enablePenalties: true,
+            enableBonuses: true,
+            reminderTimes: ["09:00", "18:00"]
           }
         }
       },
