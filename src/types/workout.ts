@@ -1,38 +1,25 @@
 import { Exercise } from './exercise';
 
+export interface WorkoutProgress {
+  pushups: number;
+  situps: number;
+  squats: number;
+  milesRan: number;
+}
+
 export interface Workout {
   date: string;
   completed: boolean;
   level: number;
-  requirements: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
-  };
-  currentProgress: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
-  };
-  penalties: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
-  };
+  requirements: WorkoutProgress;
+  currentProgress: WorkoutProgress;
+  penalties: WorkoutProgress;
   bonusTask: string | null;
   hasPenalty: boolean;
 }
 
 export interface WorkoutUpdate {
-  exercises: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
-  };
+  exercises: WorkoutProgress;
   completeBonusTask: boolean;
 }
 

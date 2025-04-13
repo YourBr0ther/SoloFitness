@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import HeaderSection from "@/components/journal/HeaderSection";
 import LevelProgress from "@/components/journal/LevelProgress";
 import ExerciseCard from "@/components/journal/ExerciseCard";
 import PenaltyTask from "@/components/journal/PenaltyTask";
 import BonusTask from "@/components/journal/BonusTask";
 import StreakPopup from "@/components/journal/StreakPopup";
-import { Exercise, PenaltyTask as PenaltyTaskType, BonusTask as BonusTaskType } from "@/types/journal";
+import { DailyExercise, PenaltyTask as PenaltyTaskType, BonusTask as BonusTaskType } from "@/types/journal";
 import { useData } from '@/contexts/DataContext';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
 import { User } from '@/types/user';
@@ -26,7 +26,8 @@ export default function JournalPage() {
   const [showCompleteButton, setShowCompleteButton] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [isPulsing, setIsPulsing] = useState(false);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [exercises, setExercises] = useState<DailyExercise[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [penaltyTask, setPenaltyTask] = useState<PenaltyTaskType | null>(null);
   const [bonusTask, setBonusTask] = useState<BonusTaskType | null>(null);
   const [penaltyProgress, setPenaltyProgress] = useState(0);
@@ -34,6 +35,14 @@ export default function JournalPage() {
   const [isPenaltyTransitioning, setIsPenaltyTransitioning] = useState(false);
   const [completedBonusTask, setCompletedBonusTask] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [lastLoadedDate, setLastLoadedDate] = useState<string | null>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('lastLoadedDate');
+    }
+    return null;
+  });
 
   // Load workout data
   useEffect(() => {
@@ -41,94 +50,141 @@ export default function JournalPage() {
     loadProfile();
   }, [loadTodayWorkout, loadProfile]);
 
-  // Set up exercises based on workout requirements
+  // Check for new day and set up exercises
   useEffect(() => {
-    if (todayWorkout) {
-      const newExercises: Exercise[] = [
-        {
-          id: 'pushups',
-          name: 'Push-ups',
-          count: todayWorkout.currentProgress.pushups,
-          dailyGoal: todayWorkout.requirements.pushups,
-          increment: 1,
-          unit: 'reps'
-        },
-        {
-          id: 'situps',
-          name: 'Sit-ups',
-          count: todayWorkout.currentProgress.situps,
-          dailyGoal: todayWorkout.requirements.situps,
-          increment: 1,
-          unit: 'reps'
-        },
-        {
-          id: 'squats',
-          name: 'Squats',
-          count: todayWorkout.currentProgress.squats,
-          dailyGoal: todayWorkout.requirements.squats,
-          increment: 1,
-          unit: 'reps'
-        },
-        {
-          id: 'milesRan',
-          name: 'Running',
-          count: todayWorkout.currentProgress.milesRan,
-          dailyGoal: todayWorkout.requirements.milesRan,
-          increment: 0.1,
-          unit: 'miles'
-        }
-      ];
+    if (todayWorkout && (!isInitialized || (lastLoadedDate && lastLoadedDate !== new Date().toISOString().split('T')[0]))) {
+      // Get today's date in user's local timezone
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
       
-      setExercises(newExercises);
-      
-      // Check if there's a penalty
-      if (todayWorkout.hasPenalty) {
-        // Find the first exercise with a penalty
-        if (todayWorkout.penalties.pushups > 0) {
-          setPenaltyTask({
-            id: 'pushups-penalty',
-            exercise: 'Push-ups',
-            count: todayWorkout.penalties.pushups,
-            unit: 'reps'
-          });
-        } else if (todayWorkout.penalties.situps > 0) {
-          setPenaltyTask({
-            id: 'situps-penalty',
-            exercise: 'Sit-ups',
-            count: todayWorkout.penalties.situps,
-            unit: 'reps'
-          });
-        } else if (todayWorkout.penalties.squats > 0) {
-          setPenaltyTask({
-            id: 'squats-penalty',
-            exercise: 'Squats',
-            count: todayWorkout.penalties.squats,
-            unit: 'reps'
-          });
-        } else if (todayWorkout.penalties.milesRan > 0) {
-          setPenaltyTask({
-            id: 'running-penalty',
-            exercise: 'Running',
-            count: todayWorkout.penalties.milesRan,
-            unit: 'miles'
-          });
+      // Check if this is our first load or if it's a new day
+      if (lastLoadedDate && lastLoadedDate !== todayStr) {
+        // Show notification in multiple ways to ensure user awareness
+        try {
+          // 1. Play notification sound
+          const audio = new Audio('/notification.mp3');
+          audio.play().catch(error => console.log('Audio playback failed:', error));
+          
+          // 2. Try system notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('New Day Started!', {
+              body: 'Your daily exercise progress has been reset. Ready for a new day of training?',
+              icon: '/icon.png'
+            });
+          }
+        } catch (error) {
+          console.error('Notification error:', error);
         }
-      } else {
-        setPenaltyTask(null);
+
+        // 3. Show UI toast or alert as fallback
+        alert('New day started! Your exercise progress has been reset.');
       }
       
-      // Check if there's a bonus task
-      if (todayWorkout.bonusTask) {
-        setBonusTask({
-          id: 'daily-bonus',
-          description: todayWorkout.bonusTask,
-          completed: false
-        });
-      } else {
-        setBonusTask(null);
+      // Persist last loaded date
+      setLastLoadedDate(todayStr);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lastLoadedDate', todayStr);
+      }
+
+      // Set up exercises with error boundary
+      try {
+        const newExercises: DailyExercise[] = [
+          {
+            id: 'pushups',
+            name: 'Push-ups',
+            count: todayWorkout.currentProgress.pushups,
+            dailyGoal: todayWorkout.requirements.pushups,
+            increment: 1,
+            unit: 'reps'
+          },
+          {
+            id: 'situps',
+            name: 'Sit-ups',
+            count: todayWorkout.currentProgress.situps,
+            dailyGoal: todayWorkout.requirements.situps,
+            increment: 1,
+            unit: 'reps'
+          },
+          {
+            id: 'squats',
+            name: 'Squats',
+            count: todayWorkout.currentProgress.squats,
+            dailyGoal: todayWorkout.requirements.squats,
+            increment: 1,
+            unit: 'reps'
+          },
+          {
+            id: 'milesRan',
+            name: 'Running',
+            count: todayWorkout.currentProgress.milesRan,
+            dailyGoal: todayWorkout.requirements.milesRan,
+            increment: 0.1,
+            unit: 'miles'
+          }
+        ];
+        
+        setExercises(newExercises);
+        setIsInitialized(true);
+        
+        // Check if there's a penalty
+        if (todayWorkout.hasPenalty) {
+          // Find the first exercise with a penalty
+          if (todayWorkout.penalties.pushups > 0) {
+            setPenaltyTask({
+              id: 'pushups-penalty',
+              exercise: 'Push-ups',
+              count: todayWorkout.penalties.pushups,
+              unit: 'reps'
+            });
+          } else if (todayWorkout.penalties.situps > 0) {
+            setPenaltyTask({
+              id: 'situps-penalty',
+              exercise: 'Sit-ups',
+              count: todayWorkout.penalties.situps,
+              unit: 'reps'
+            });
+          } else if (todayWorkout.penalties.squats > 0) {
+            setPenaltyTask({
+              id: 'squats-penalty',
+              exercise: 'Squats',
+              count: todayWorkout.penalties.squats,
+              unit: 'reps'
+            });
+          } else if (todayWorkout.penalties.milesRan > 0) {
+            setPenaltyTask({
+              id: 'running-penalty',
+              exercise: 'Running',
+              count: todayWorkout.penalties.milesRan,
+              unit: 'miles'
+            });
+          }
+        } else {
+          setPenaltyTask(null);
+        }
+        
+        // Check if there's a bonus task
+        if (todayWorkout.bonusTask) {
+          setBonusTask({
+            id: 'daily-bonus',
+            description: todayWorkout.bonusTask,
+            completed: false
+          });
+        } else {
+          setBonusTask(null);
+        }
+      } catch (error) {
+        console.error('Error setting up exercises:', error);
+        setExercises([]);
       }
     }
-  }, [todayWorkout]);
+  }, [todayWorkout, lastLoadedDate, isInitialized]);
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Check if all exercises have met their daily goals
   useEffect(() => {
@@ -173,10 +229,53 @@ export default function JournalPage() {
     audio.play().catch(error => console.log('Audio playback failed:', error));
   };
 
+  // Debounced save function with retry mechanism
+  const debouncedSave = useCallback((newExercises: DailyExercise[]) => {
+    console.log('debouncedSave called with:', newExercises);
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+
+    const timeout = setTimeout(async () => {
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          const exerciseData = {
+            pushups: newExercises.find(ex => ex.id === 'pushups')?.count || 0,
+            situps: newExercises.find(ex => ex.id === 'situps')?.count || 0,
+            squats: newExercises.find(ex => ex.id === 'squats')?.count || 0,
+            milesRan: newExercises.find(ex => ex.id === 'milesRan')?.count || 0
+          };
+          
+          console.log('Attempting to save exercise data:', exerciseData);
+          await updateWorkoutProgress(exerciseData, completedBonusTask);
+          console.log('Exercise data saved successfully');
+          break; // Success, exit retry loop
+        } catch (error) {
+          console.error(`Failed to save exercise progress (${retries} retries left):`, error);
+          retries--;
+          if (retries === 0) {
+            // Show error to user on final retry
+            alert('Failed to save your progress. Please check your connection and try again.');
+          } else {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+    }, 1000);
+
+    setSaveTimeout(timeout);
+  }, [updateWorkoutProgress, completedBonusTask, saveTimeout]);
+
   const handleUpdateExercise = (id: string, count: number) => {
-    setExercises(prev => prev.map(ex => 
+    const newExercises = exercises.map(ex => 
       ex.id === id ? { ...ex, count } : ex
-    ));
+    );
+    setExercises(newExercises);
+    
+    // Trigger debounced save
+    debouncedSave(newExercises);
   };
 
   const handleCompleteTraining = async () => {
@@ -231,6 +330,15 @@ export default function JournalPage() {
     return { level, currentXP, maxXP };
   };
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [saveTimeout]);
+
   if (workoutError || profileError) {
     return (
       <div className="p-4">
@@ -258,7 +366,7 @@ export default function JournalPage() {
   return (
     <>
       {showStreakPopup && (
-        <StreakPopup streak={streakCount} onClose={() => setShowStreakPopup(false)} />
+        <StreakPopup streakCount={streakCount} onClose={() => setShowStreakPopup(false)} />
       )}
       
       <main 

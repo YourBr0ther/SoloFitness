@@ -130,12 +130,13 @@ export default function RegisterPage() {
         return;
       }
 
-      // Store token in localStorage
+      // Store token in localStorage and cookie
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `token=${data.token}; path=/`;
       
       // Successful registration
-      router.push('/coach');
+      router.push('/journal');
     } catch (error) {
       console.error('Registration error:', error);
       setErrors({
@@ -152,27 +153,29 @@ export default function RegisterPage() {
       <div className="absolute inset-0 bg-gradient-to-b from-black via-[#001a33] to-black opacity-90" />
       
       {/* Glowing particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              scale: [1, 1.5, 1],
-              opacity: [0.3, 0.8, 0.3],
-            }}
-            transition={{
-              duration: 2 + Math.random() * 3,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </div>
+      {typeof window !== 'undefined' && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
+              style={{
+                left: `${((i * 17) % 100)}%`,
+                top: `${((i * 23) % 100)}%`,
+              }}
+              animate={{
+                scale: [1, 1.5, 1],
+                opacity: [0.3, 0.8, 0.3],
+              }}
+              transition={{
+                duration: 2 + (i % 3),
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Content */}
       <motion.div 

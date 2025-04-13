@@ -69,7 +69,7 @@ export class ApiService extends BaseApiService {
   private offlineService: OfflineService;
 
   constructor() {
-    super(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
+    super('/api');
     this.cacheStrategy = CacheStrategy.getInstance();
     this.syncService = SyncService.getInstance(this);
     this.offlineService = OfflineService.getInstance(this.syncService);
@@ -207,8 +207,8 @@ export class ApiService extends BaseApiService {
   // Profile endpoints
   async getProfile(): Promise<ApiResponse<Profile>> {
     return this.cacheStrategy.withCache(
-      '/users/me/profile',
-      () => this.get<Profile>('/users/me/profile'),
+      '/profile',
+      () => this.get<Profile>('/profile'),
       undefined,
       5 * 60 * 1000 // 5 minutes TTL
     );
@@ -216,11 +216,11 @@ export class ApiService extends BaseApiService {
 
   async updateProfile(profile: Partial<Profile>): Promise<ApiResponse<Profile>> {
     if (this.offlineService.isOffline()) {
-      const operationId = await this.offlineService.createOperation('update', '/users/me/profile', profile);
+      const operationId = await this.offlineService.createOperation('update', '/profile', profile);
       return { data: profile as Profile, status: 202 }; // Accepted
     }
 
-    await this.syncService.addToQueue('/users/me/profile', 'PUT', profile, {
+    await this.syncService.addToQueue('/profile', 'PUT', profile, {
       priority: 'normal',
       conflictResolution: 'merge'
     });
@@ -549,7 +549,12 @@ export class ApiService extends BaseApiService {
 
   // Streak endpoints
   async getStreakHistory(): Promise<ApiResponse<StreakDay[]>> {
-    return this.get<StreakDay[]>('/profile/streak-history');
+    return this.cacheStrategy.withCache(
+      '/profile/streak-history',
+      () => this.get<StreakDay[]>('/profile/streak-history'),
+      undefined,
+      5 * 60 * 1000 // 5 minutes TTL
+    );
   }
 
   async updateStreak(update: StreakDay): Promise<ApiResponse<StreakDay>> {
@@ -614,7 +619,12 @@ export class ApiService extends BaseApiService {
 
   // Workout endpoints
   async getTodayWorkout(): Promise<ApiResponse<Workout>> {
-    return this.get<Workout>('/workouts/today');
+    return this.cacheStrategy.withCache(
+      '/workouts/today',
+      () => this.get<Workout>('/workouts/today'),
+      undefined,
+      60 * 1000 // 1 minute TTL to keep it fresh
+    );
   }
 
   async updateWorkoutProgress(exercises: Record<string, number>, completeBonusTask: boolean): Promise<ApiResponse<WorkoutResult>> {

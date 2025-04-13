@@ -3,10 +3,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { dataService } from '@/services/dataService';
 import { Coach } from '@/types/coach';
-import { Exercise, PenaltyTask, BonusTask } from '@/types/journal';
+import { ExerciseProgress, PenaltyTask, BonusTask } from '@/types/journal';
 import { Profile, StreakDay, GymBadge } from '@/types/profile';
 import { ApiError } from '@/types/errors';
-import { Workout } from '@/types/workout';
+import { Workout, WorkoutProgress, WorkoutResult } from '@/types/workout';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface DataContextType {
   // Coach Data
@@ -16,7 +17,7 @@ interface DataContextType {
   coachError: ApiError | null;
   loadCoaches: () => Promise<void>;
   selectCoach: (coach: Coach) => void;
-  sendMessage: (message: string) => Promise<string>;
+  sendMessage: (message: string) => Promise<void>;
 
   // Profile Data
   profile: Profile | null;
@@ -28,11 +29,11 @@ interface DataContextType {
   badges: GymBadge[];
 
   // Journal Data
-  exercises: Exercise[];
+  exercises: ExerciseProgress[];
   isLoadingExercises: boolean;
   exerciseError: ApiError | null;
   loadExercises: () => Promise<void>;
-  updateExercise: (exerciseId: string, count: number) => Promise<void>;
+  updateExercise: (exerciseId: string, updates: Partial<ExerciseProgress>) => Promise<void>;
   penaltyTasks: PenaltyTask[];
   bonusTasks: BonusTask[];
   updatePenaltyTask: (taskId: string, progress: number) => Promise<void>;
@@ -44,39 +45,137 @@ interface DataContextType {
   isLoadingWorkout: boolean;
   workoutError: ApiError | null;
   loadTodayWorkout: () => Promise<void>;
-  updateWorkoutProgress: (exercises: Record<string, number>, completeBonusTask: boolean) => Promise<void>;
+  updateWorkoutProgress: (exercises: WorkoutProgress, completeBonusTask: boolean) => Promise<WorkoutResult>;
+
+  isAuthenticated: boolean;
+  isInitializing: boolean;
+  globalError: string | null;
 }
 
-const DataContext = createContext<DataContextType | undefined>(undefined);
+const defaultContext: DataContextType = {
+  // Coach defaults
+  coaches: [],
+  selectedCoach: null,
+  isLoadingCoaches: false,
+  coachError: null,
+  loadCoaches: async () => {},
+  selectCoach: () => {},
+  sendMessage: async () => {},
+  
+  // Profile defaults
+  profile: null,
+  isLoadingProfile: false,
+  profileError: null,
+  loadProfile: async () => {},
+  updateProfile: async () => {},
+  streakHistory: [],
+  badges: [],
+
+  // Journal defaults
+  exercises: [],
+  isLoadingExercises: false,
+  exerciseError: null,
+  loadExercises: async () => {},
+  updateExercise: async () => {},
+  penaltyTasks: [],
+  bonusTasks: [],
+  updatePenaltyTask: async () => {},
+  updateBonusTask: async () => {},
+  updateStreak: async () => {},
+
+  // Workout defaults
+  todayWorkout: null,
+  isLoadingWorkout: false,
+  workoutError: null,
+  loadTodayWorkout: async () => {},
+  updateWorkoutProgress: async () => ({
+    completed: false,
+    xpEarned: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    level: 1
+  }),
+  
+  // Auth defaults
+  isAuthenticated: false,
+  isInitializing: true,
+  globalError: null
+};
+
+const DataContext = createContext<DataContextType>(defaultContext);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  // Coach State
+  // Coach state
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);
   const [isLoadingCoaches, setIsLoadingCoaches] = useState(false);
   const [coachError, setCoachError] = useState<ApiError | null>(null);
-
-  // Profile State
+  
+  // Profile state
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<ApiError | null>(null);
   const [streakHistory, setStreakHistory] = useState<StreakDay[]>([]);
   const [badges, setBadges] = useState<GymBadge[]>([]);
 
-  // Journal State
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  // Journal state
+  const [exercises, setExercises] = useState<ExerciseProgress[]>([]);
   const [isLoadingExercises, setIsLoadingExercises] = useState(false);
   const [exerciseError, setExerciseError] = useState<ApiError | null>(null);
   const [penaltyTasks, setPenaltyTasks] = useState<PenaltyTask[]>([]);
   const [bonusTasks, setBonusTasks] = useState<BonusTask[]>([]);
 
-  // Workout State
+  // Workout state
   const [todayWorkout, setTodayWorkout] = useState<Workout | null>(null);
   const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
   const [workoutError, setWorkoutError] = useState<ApiError | null>(null);
 
-  // Coach Methods
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // List of paths that don't require authentication
+  const publicPaths = ['/', '/login', '/register', '/forgot-password'];
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = document.cookie.includes('token=');
+      setIsAuthenticated(token);
+      setIsInitializing(false);
+
+      // If on a protected route without auth, redirect to login
+      if (!token && !publicPaths.includes(pathname)) {
+        router.push('/login');
+        return false;
+      }
+
+      // If authenticated on an auth route, redirect to journal
+      if (token && publicPaths.includes(pathname)) {
+        router.push('/journal');
+        return false;
+      }
+
+      return token && !publicPaths.includes(pathname);
+    };
+
+    const shouldLoadData = checkAuth();
+
+    // Only load data if authenticated and on a protected route
+    if (shouldLoadData) {
+      loadCoaches();
+      loadProfile();
+      loadExercises();
+      loadTodayWorkout();
+    }
+  }, [pathname, router]);
+
   const loadCoaches = async () => {
+    if (!isAuthenticated) return;
+    
     try {
       setIsLoadingCoaches(true);
       setCoachError(null);
@@ -94,12 +193,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const sendMessage = async (message: string) => {
-    if (!selectedCoach) throw new Error('No coach selected');
-    return dataService.sendMessage(selectedCoach.id, message);
+    if (!isAuthenticated || !selectedCoach) return;
+    const response = await dataService.sendMessage(selectedCoach.id, message);
+    return response.data;
   };
 
-  // Profile Methods
   const loadProfile = async () => {
+    if (!isAuthenticated) return;
+    
     try {
       setIsLoadingProfile(true);
       setProfileError(null);
@@ -119,12 +220,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!profile) throw new Error('No profile loaded');
-    const updatedProfile = await dataService.updateProfile(updates);
-    setProfile(updatedProfile);
+    if (!isAuthenticated) return;
+    
+    try {
+      const updatedProfile = await dataService.updateProfile(updates);
+      setProfile(updatedProfile);
+    } catch (error) {
+      setProfileError(error as ApiError);
+    }
   };
 
-  // Journal Methods
   const loadExercises = async () => {
     try {
       setIsLoadingExercises(true);
@@ -144,8 +249,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateExercise = async (exerciseId: string, count: number) => {
-    const updatedExercise = await dataService.updateExercise(exerciseId, count);
+  const updateExercise = async (exerciseId: string, updates: Partial<ExerciseProgress>) => {
+    const updatedExercise = await dataService.updateExercise(exerciseId, updates);
     setExercises(prev => prev.map(ex => 
       ex.id === exerciseId ? updatedExercise : ex
     ));
@@ -172,8 +277,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     ));
   };
 
-  // Workout Methods
   const loadTodayWorkout = async () => {
+    if (!isAuthenticated) return;
+    
     try {
       setIsLoadingWorkout(true);
       setWorkoutError(null);
@@ -186,11 +292,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateWorkoutProgress = async (exercises: Record<string, number>, completeBonusTask: boolean) => {
+  const updateWorkoutProgress = async (
+    exercises: WorkoutProgress,
+    completeBonusTask: boolean
+  ): Promise<WorkoutResult> => {
+    if (!isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+    
     try {
       const result = await dataService.updateWorkoutProgress(exercises, completeBonusTask);
-      // Reload profile and workout data since they've been updated
-      await Promise.all([loadProfile(), loadTodayWorkout()]);
+      
+      // Update local state instead of reloading
+      if (todayWorkout) {
+        setTodayWorkout({
+          ...todayWorkout,
+          currentProgress: exercises
+        });
+      }
+      
+      // Only reload profile since XP/level might have changed
+      await loadProfile();
+      
       return result;
     } catch (error) {
       setWorkoutError(error as ApiError);
@@ -198,14 +321,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Initial Data Loading
-  useEffect(() => {
-    loadCoaches();
-    loadProfile();
-    loadExercises();
-  }, []);
-
-  const value = {
+  const value: DataContextType = {
     // Coach Data
     coaches,
     selectedCoach,
@@ -242,6 +358,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     workoutError,
     loadTodayWorkout,
     updateWorkoutProgress,
+
+    // Auth state
+    isAuthenticated,
+    isInitializing,
+    globalError
   };
 
   return (
@@ -251,10 +372,4 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useData() {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
-  }
-  return context;
-} 
+export const useData = () => useContext(DataContext); 

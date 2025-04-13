@@ -111,12 +111,13 @@ export default function LoginPage() {
         return;
       }
 
-      // Store token in localStorage
+      // Store token in localStorage and cookie
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `token=${data.token}; path=/`;
       
       // Successful login
-      router.push('/coach');
+      router.push('/journal');
     } catch (error) {
       console.error('Login error:', error);
       setErrors({
@@ -134,25 +135,31 @@ export default function LoginPage() {
       
       {/* Glowing particles */}
       <div className="absolute inset-0 overflow-hidden">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              scale: [1, 1.5, 1],
-              opacity: [0.3, 0.8, 0.3],
-            }}
-            transition={{
-              duration: 2 + Math.random() * 3,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
+        {typeof window !== 'undefined' && [...Array(20)].map((_, i) => {
+          // Use a consistent seed based on index
+          const leftPos = ((i * 17) % 100);
+          const topPos = ((i * 23) % 100);
+          
+          return (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
+              style={{
+                left: `${leftPos}%`,
+                top: `${topPos}%`,
+              }}
+              animate={{
+                scale: [1, 1.5, 1],
+                opacity: [0.3, 0.8, 0.3],
+              }}
+              transition={{
+                duration: 2 + (i % 3),
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Content */}

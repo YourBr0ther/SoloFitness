@@ -104,7 +104,77 @@
 - [x] Project Setup Instructions
 
 ## Backend Tasks (LOCKED)
-> Note: Backend tasks will be defined once frontend development is complete
+### MongoDB Setup & Configuration (V1)
+- [x] Set up MongoDB Atlas cluster
+- [x] Configure network access and IP whitelist
+- [x] Create development and production databases
+- [x] Set up basic environment variables
+  - [x] MongoDB connection strings
+  - [x] JWT secret keys
+  - [x] Environment-specific configurations
+- [x] Configure CORS policies
+- [x] Implement basic request validation
+
+### Core Data Models (V1)
+#### User Model
+- [x] Basic user information
+  - [x] Username
+  - [x] Email
+  - [x] Hashed password
+  - [x] Created/Updated timestamps
+- [x] Authentication data
+  - [x] Password reset tokens
+  - [x] Session management
+
+#### Fitness Data Models
+- [x] Exercise tracking
+  - [x] Exercise types
+  - [x] Sets/Reps/Duration
+  - [x] Timestamps
+- [x] Progress tracking
+  - [x] XP system
+  - [x] Level progression
+
+#### Coach/AI Interaction Model
+- [x] Chat history
+- [x] Basic user preferences
+
+### Essential API Endpoints (V1)
+#### Authentication
+- [x] User registration
+  - [x] Password validation
+  - [x] Duplicate checking
+- [x] Login/Logout
+  - [x] JWT token generation
+- [x] Basic session management
+
+#### Core Features
+- [x] Profile management (CRUD)
+- [x] Exercise logging
+- [x] Progress tracking
+- [x] Basic chat interactions
+
+### Basic Integration & Testing (V1)
+- [x] Set up Mongoose schemas
+- [x] Implement basic data validation
+- [x] Create essential database indexes
+- [ ] Basic unit tests
+  - [ ] Model validation
+  - [ ] Core endpoints
+- [x] Frontend API integration
+- [x] Error handling
+
+### Deployment Essentials (V1)
+- [ ] Configure production environment
+- [ ] Set up SSL certificates
+- [ ] Basic monitoring setup
+- [x] API documentation
+
+### Security Essentials (V1)
+- [x] Implement data encryption
+- [x] Set up secure connections
+- [x] Basic input validation
+- [x] Essential security headers
 
 ## Progress Tracking
 - Current Phase: Frontend Development

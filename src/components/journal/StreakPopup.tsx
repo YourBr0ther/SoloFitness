@@ -2,15 +2,16 @@ import { Flame } from "lucide-react";
 
 interface StreakPopupProps {
   streakCount: number;
-  isVisible: boolean;
+  onClose: () => void;
 }
 
-const StreakPopup = ({ streakCount, isVisible }: StreakPopupProps) => {
-  if (!isVisible) return null;
-
+const StreakPopup = ({ streakCount, onClose }: StreakPopupProps) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-black/90 backdrop-blur-sm rounded-lg p-8 max-w-md w-full mx-4 text-center animate-scale-in">
+      <div 
+        className="bg-black/90 backdrop-blur-sm rounded-lg p-8 max-w-md w-full mx-4 text-center animate-scale-in"
+        onClick={onClose}
+      >
         <div className="mb-4">
           <Flame className="w-16 h-16 text-[#00A8FF] mx-auto animate-pulse-slow" />
         </div>

@@ -13,8 +13,8 @@ export interface AuthUser {
 // Helper function to authenticate the request that works with Next.js headers
 export async function authenticate(): Promise<AuthUser | null> {
   try {
-    // Using headers() synchronously
-    const headersList = headers();
+    // Using headers() asynchronously
+    const headersList = await headers();
     const authorization = headersList.get('Authorization');
 
     if (!authorization?.startsWith('Bearer ')) {

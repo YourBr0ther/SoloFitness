@@ -1,14 +1,14 @@
-import { realApiService } from './realApi';
+import { ApiService } from './realApi';
 import { mockApiService } from './mockApi';
 import { CacheService } from './cacheService';
 import { Coach } from '@/types/coach';
 import { ExerciseProgress, PenaltyTask, BonusTask } from '@/types/journal';
 import { Exercise } from '@/types/exercise';
 import { Profile, StreakDay, GymBadge } from '@/types/profile';
-import { Workout } from '@/types/workout';
+import { Workout, WorkoutProgress, WorkoutResult, WorkoutUpdate } from '@/types/workout';
 
-// Use mock API service for development
-const apiService = process.env.NODE_ENV === 'development' ? mockApiService : realApiService;
+// Use mock API service only when explicitly enabled
+const apiService = process.env.NEXT_PUBLIC_USE_MOCK_API === 'true' ? mockApiService : new ApiService();
 
 // Initialize cache service with configuration
 const cacheService = new CacheService({
@@ -77,15 +77,15 @@ class DataService {
     }
 
     const response = await apiService.getExercises();
-    // Transform the response data to match the ExerciseProgress type
-    const exercises = response.data.map(ex => ({
-      id: ex.id,
-      name: ex.name,
+    const exercises = response.data.map((exercise: any): ExerciseProgress => ({
+      id: exercise.id.toString(),
+      name: exercise.name,
       count: 0,
       dailyGoal: 0,
       increment: 1,
       unit: 'reps'
     }));
+    
     cacheService.set(cacheKey, exercises);
     return exercises;
   }
@@ -99,17 +99,19 @@ class DataService {
     }
 
     const response = await apiService.getExercise(id);
-    // Transform the response data to match the ExerciseProgress type
-    const exercise = {
-      id: response.data.id,
-      name: response.data.name,
+    const exercise = response.data as any;
+    
+    const progress: ExerciseProgress = {
+      id: exercise.id.toString(),
+      name: exercise.name,
       count: 0,
       dailyGoal: 0,
       increment: 1,
       unit: 'reps'
     };
-    cacheService.set(cacheKey, exercise);
-    return exercise;
+    
+    cacheService.set(cacheKey, progress);
+    return progress;
   }
 
   async createExercise(exercise: Omit<ExerciseProgress, 'id'>): Promise<ExerciseProgress> {
@@ -207,10 +209,11 @@ class DataService {
   }
 
   async updatePenaltyTask(id: string, progress: number): Promise<PenaltyTask> {
-    const response = await apiService.updatePenaltyTask(id, { progress });
-    // Invalidate penalty tasks cache
+    const response = await apiService.updatePenaltyTask(id, { count: progress });
     cacheService.delete('penaltyTasks');
-    return response.data;
+    const task = response.data;
+    task.count = parseInt(task.count as string, 10);
+    return task;
   }
 
   // Bonus Tasks
@@ -248,13 +251,33 @@ class DataService {
     return response.data;
   }
 
-  async updateWorkoutProgress(exercises: any, completeBonusTask: boolean): Promise<any> {
-    const response = await apiService.updateWorkoutProgress(exercises, completeBonusTask);
-    // Invalidate caches that this affects
-    cacheService.delete('todayWorkout');
-    cacheService.delete('profile');
-    cacheService.delete('streakHistory');
-    return response.data;
+  async updateWorkoutProgress(exercises: WorkoutProgress, completeBonusTask: boolean): Promise<WorkoutResult> {
+    try {
+      // Convert WorkoutProgress to Record<string, number> as expected by the API
+      const exerciseData: Record<string, number> = {
+        pushups: exercises.pushups,
+        situps: exercises.situps,
+        squats: exercises.squats,
+        milesRan: exercises.milesRan
+      };
+
+      const response = await apiService.updateWorkoutProgress(exerciseData, completeBonusTask);
+      
+      if (!response.data) {
+        throw new Error('No data received from workout progress update');
+      }
+
+      // Invalidate caches that this affects
+      cacheService.delete('todayWorkout');
+      cacheService.delete('profile');
+      cacheService.delete('streakHistory');
+
+      return response.data;
+    } catch (error) {
+      console.error('Error updating workout progress:', error);
+      // Re-throw the error to be handled by the caller
+      throw error;
+    }
   }
 
   // Offline Support
@@ -268,6 +291,12 @@ class DataService {
 
   isOffline(): boolean {
     return cacheService.isOffline();
+  }
+
+  // Coach messaging
+  async sendMessage(coachId: string, message: string): Promise<any> {
+    const response = await apiService.sendMessage(coachId, message);
+    return response;
   }
 }
 

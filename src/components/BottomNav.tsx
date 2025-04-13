@@ -3,9 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageSquare, BookOpen, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const BottomNav = () => {
   const pathname = usePathname();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // Check if token exists in cookies
+    const token = document.cookie.includes('token=');
+    setIsLoggedIn(token);
+  }, [pathname]); // Re-check when pathname changes
 
   const navItems = [
     {
@@ -24,6 +32,11 @@ const BottomNav = () => {
       icon: User,
     },
   ];
+
+  // Don't render navigation if user is not logged in
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm border-t border-gray-800 z-50">

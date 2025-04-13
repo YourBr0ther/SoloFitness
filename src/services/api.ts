@@ -17,16 +17,16 @@ export abstract class BaseApiService {
     this.baseUrl = baseUrl;
     // Load auth token from localStorage if available
     if (typeof window !== 'undefined') {
-      this.authToken = localStorage.getItem('authToken');
+      this.authToken = localStorage.getItem('token');
     }
   }
 
   setAuthToken(token: string | null) {
     this.authToken = token;
     if (token) {
-      localStorage.setItem('authToken', token);
+      localStorage.setItem('token', token);
     } else {
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
     }
   }
 
@@ -213,4 +213,10 @@ export abstract class BaseApiService {
   // Workout endpoints
   abstract getTodayWorkout(): Promise<ApiResponse<Workout>>;
   abstract updateWorkoutProgress(exercises: Record<string, number>, completeBonusTask: boolean): Promise<ApiResponse<WorkoutResult>>;
+
+  logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  }
 } 

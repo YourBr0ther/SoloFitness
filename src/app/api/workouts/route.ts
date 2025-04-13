@@ -7,15 +7,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Utility function for auth within this file
 async function getAuthToken() {
-  const headersList = headers();
-  const authorization = headersList.get('Authorization');
+  const headersList = await headers();
+  const authHeader = headersList.get('authorization');
   
-  if (!authorization?.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return null;
   }
   
   try {
-    const token = authorization.split(' ')[1];
+    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
     return decoded;
   } catch (error) {
@@ -203,10 +203,13 @@ export async function GET() {
 
 // POST /api/workouts - Update workout progress and check completion
 export async function POST(request: Request) {
+  console.log('POST /api/workouts - Received request');
   // Get auth token
   const decoded = await getAuthToken();
+  console.log('POST /api/workouts - Auth token decoded:', decoded ? 'valid' : 'invalid');
   
   if (!decoded) {
+    console.log('POST /api/workouts - Unauthorized request');
     return NextResponse.json(
       { message: 'Unauthorized' },
       { status: 401 }
@@ -215,7 +218,9 @@ export async function POST(request: Request) {
 
   try {
     const userId = decoded.userId;
-    const { exercises, completeBonusTask } = await request.json();
+    const body = await request.json();
+    console.log('POST /api/workouts - Request body:', body);
+    const { exercises, completeBonusTask } = body;
     
     // Get the user's profile
     const user = await prisma.user.findUnique({
@@ -233,8 +238,11 @@ export async function POST(request: Request) {
         }
       }
     });
+    console.log('POST /api/workouts - Found user:', user ? 'yes' : 'no');
+    console.log('POST /api/workouts - User has profile:', user?.profile ? 'yes' : 'no');
 
     if (!user || !user.profile) {
+      console.log('POST /api/workouts - User or profile not found');
       return NextResponse.json(
         { message: 'User profile not found' },
         { status: 404 }
@@ -324,9 +332,11 @@ export async function POST(request: Request) {
     
     // Update or create streak history entry
     let updatedEntry;
+    console.log('POST /api/workouts - Updating streak history entry. Exists:', todayEntryIndex >= 0);
     
     if (todayEntryIndex >= 0) {
       // Update existing entry
+      console.log('POST /api/workouts - Updating existing entry:', user.profile.streakHistory[todayEntryIndex].id);
       updatedEntry = await prisma.streakHistory.update({
         where: {
           id: user.profile.streakHistory[todayEntryIndex].id
@@ -339,6 +349,7 @@ export async function POST(request: Request) {
       });
     } else {
       // Create new entry
+      console.log('POST /api/workouts - Creating new entry for date:', today);
       updatedEntry = await prisma.streakHistory.create({
         data: {
           profileId: user.profile.id,
@@ -349,6 +360,7 @@ export async function POST(request: Request) {
         }
       });
     }
+    console.log('POST /api/workouts - Updated/Created entry:', updatedEntry);
     
     // Update user profile
     const totalXp = user.profile.xp + xpEarned;
@@ -369,6 +381,7 @@ export async function POST(request: Request) {
       milesRan: oldExerciseCounts.milesRan + exercises.milesRan
     };
     
+    console.log('POST /api/workouts - Updating profile with new counts:', newExerciseCounts);
     await prisma.profile.update({
       where: {
         id: user.profile.id
@@ -391,7 +404,7 @@ export async function POST(request: Request) {
     });
     
   } catch (error) {
-    console.error('Error updating workout:', error);
+    console.error('POST /api/workouts - Error updating workout:', error);
     return NextResponse.json(
       { message: 'Failed to update workout' },
       { status: 500 }

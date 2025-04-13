@@ -24,11 +24,16 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
+// List of public routes that don't need data providers
+const publicRoutes = ['/', '/login', '/register', '/forgot-password'];
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // For server components, we'll use middleware to handle auth
+  // Client-side components will handle their own data fetching based on auth state
   return (
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-black text-white pb-16`}>

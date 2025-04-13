@@ -2,6 +2,9 @@ export interface Profile {
   id: string;
   username: string;
   avatarUrl: string;
+  level: number;
+  xp: number;
+  currentStreak: number;
   streakHistory: StreakDay[];
   notifications: NotificationTime[];
   preferences: {

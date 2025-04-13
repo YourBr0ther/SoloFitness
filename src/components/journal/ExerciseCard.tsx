@@ -1,10 +1,10 @@
 'use client';
 
 import { Plus, Minus } from "lucide-react";
-import { Exercise } from "@/types/journal";
+import { DailyExercise } from "@/types/journal";
 
 interface ExerciseCardProps {
-  exercise: Exercise;
+  exercise: DailyExercise;
   onUpdateCount: (count: number) => void;
 }
 
@@ -13,14 +13,20 @@ const ExerciseCard = ({ exercise, onUpdateCount }: ExerciseCardProps) => {
   const progressText = `${Math.round(progressPercentage)}% complete`;
 
   const handleIncrement = () => {
+    console.log('Increment clicked for:', exercise.name);
     const increment = exercise.increment || 1;
-    onUpdateCount(parseFloat((exercise.count + increment).toFixed(2)));
+    const newCount = parseFloat((exercise.count + increment).toFixed(2));
+    console.log('New count will be:', newCount);
+    onUpdateCount(newCount);
   };
 
   const handleDecrement = () => {
     if (exercise.count <= 0) return;
+    console.log('Decrement clicked for:', exercise.name);
     const increment = exercise.increment || 1;
-    onUpdateCount(parseFloat((exercise.count - increment).toFixed(2)));
+    const newCount = parseFloat((exercise.count - increment).toFixed(2));
+    console.log('New count will be:', newCount);
+    onUpdateCount(newCount);
   };
 
   return (

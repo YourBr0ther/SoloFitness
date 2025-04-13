@@ -10,8 +10,14 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    // Check if user is already logged in
+    const token = document.cookie.includes('token=');
+    if (token) {
+      router.push('/journal');
+      return;
+    }
     setMounted(true);
-  }, []);
+  }, [router]);
 
   const handleBeginJourney = () => {
     setIsTransitioning(true);
@@ -32,99 +38,61 @@ export default function Home() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {!isTransitioning ? (
-        <motion.div 
-          className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Background gradient */}
-          <motion.div 
-            className="absolute inset-0 bg-gradient-to-b from-black via-[#001a33] to-black opacity-90"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
-          />
-          
-          {/* Glowing particles */}
-          <div className="absolute inset-0 overflow-hidden">
-            {[...Array(20)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                }}
-                animate={{
-                  scale: [1, 1.5, 1],
-                  opacity: [0.3, 0.8, 0.3],
-                }}
-                transition={{
-                  duration: 2 + Math.random() * 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-            ))}
-          </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-black">
+      {/* Background animation */}
+      <motion.div 
+        className="absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        {/* Add your background animation elements here */}
+      </motion.div>
 
-          {/* Content */}
-          <div className="relative z-10 text-center space-y-8">
-            {/* App Name */}
-            <motion.h1 
-              className="text-6xl md:text-8xl font-bold tracking-tight"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <span className="text-[#00A8FF]">Solo</span>Fitness
-            </motion.h1>
+      {/* Main content */}
+      <motion.div 
+        className="relative z-10 container mx-auto px-4"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="relative z-10 text-center space-y-8">
+          {/* App Name */}
+          <motion.h1 
+            className="text-6xl md:text-8xl font-bold tracking-tight"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <span className="text-[#00A8FF]">Solo</span>Fitness
+          </motion.h1>
 
-            {/* Tagline */}
-            <motion.p 
-              className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              Level up your fitness journey with the power of a hunter
-            </motion.p>
+          {/* Tagline */}
+          <motion.p 
+            className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            Level up your fitness journey with the power of a hunter
+          </motion.p>
 
-            {/* Begin Button */}
-            <motion.button
-              className="px-12 py-4 bg-[#00A8FF] text-black font-bold text-xl rounded-lg
-                       hover:bg-[#00B8FF] transform hover:scale-105 transition-all duration-300
-                       shadow-[0_0_20px_rgba(0,168,255,0.5)] hover:shadow-[0_0_30px_rgba(0,168,255,0.7)]"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleBeginJourney}
-            >
-              Begin Your Journey
-            </motion.button>
-          </div>
-        </motion.div>
-      ) : (
-        <motion.div 
-          className="min-h-screen bg-black flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <motion.div
-            className="w-16 h-16 border-4 border-[#00A8FF] border-t-transparent rounded-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
+          {/* Begin Button */}
+          <motion.button
+            className="px-12 py-4 bg-[#00A8FF] text-black font-bold text-xl rounded-lg
+                     hover:bg-[#00B8FF] transform hover:scale-105 transition-all duration-300
+                     shadow-[0_0_20px_rgba(0,168,255,0.5)] hover:shadow-[0_0_30px_rgba(0,168,255,0.7)]"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleBeginJourney}
+          >
+            Begin Your Journey
+          </motion.button>
+        </div>
+      </motion.div>
+    </div>
   );
 }
