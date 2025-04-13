@@ -1,9 +1,9 @@
-import { ApiService } from './api';
+import { BaseApiService } from './api';
 import { ApiError } from '../types/errors';
 import { User } from '../types/user';
 import { Exercise } from '../types/exercise';
-import { Workout, WorkoutUpdate, WorkoutFilters } from '../types/workout';
-import { Profile } from '../types/profile';
+import { Workout, WorkoutUpdate, WorkoutFilters, WorkoutResult } from '../types/workout';
+import { Profile, StreakDay, GymBadge } from '../types/profile';
 import { UserSettings } from '../types/settings';
 import { Achievement, AchievementProgress } from '../types/achievements';
 import type { Notification, NotificationPreferences, NotificationUpdate, NotificationFilters } from '../types/notifications';
@@ -15,10 +15,10 @@ import { Reminder, ReminderFilters, ReminderStats } from '../types/reminder';
 import { ExportJob, ExportOptions, ExportProgress, ExportResult } from '../types/export';
 import { ImportJob, ImportOptions, ImportProgress, ImportResult } from '../types/import';
 import { ApiResponse } from '../types/api';
-import { GymBadge } from '@/types/badges';
 import { CacheStrategy } from './cacheStrategy';
 import { SyncService } from './sync';
 import { OfflineService } from './offline';
+import { PenaltyTask, BonusTask } from '../types/journal';
 
 // Define missing types
 interface ExerciseFilters {
@@ -63,7 +63,7 @@ interface CoachUpdate {
   personality?: 'motivational' | 'technical' | 'tough' | 'balanced';
 }
 
-export class RealApiService extends ApiService {
+export class ApiService extends BaseApiService {
   private cacheStrategy: CacheStrategy;
   private syncService: SyncService;
   private offlineService: OfflineService;
@@ -76,14 +76,14 @@ export class RealApiService extends ApiService {
   }
 
   // Authentication endpoints
-  async login(email: string, password: string): Promise<ApiResponse<{ token: string }>> {
-    const response = await this.post<{ token: string }>('/auth/login', { email, password });
+  async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> {
+    const response = await this.post<{ user: User; token: string }>('/auth/login', { email, password });
     this.setAuthToken(response.data.token);
     return response;
   }
 
-  async register(email: string, password: string, username: string): Promise<ApiResponse<{ token: string }>> {
-    const response = await this.post<{ token: string }>('/auth/register', { email, password, username });
+  async register(userData: Partial<User>): Promise<ApiResponse<{ user: User; token: string }>> {
+    const response = await this.post<{ user: User; token: string }>('/auth/register', userData);
     this.setAuthToken(response.data.token);
     return response;
   }
@@ -549,112 +549,16 @@ export class RealApiService extends ApiService {
 
   // Streak endpoints
   async getStreakHistory(): Promise<ApiResponse<StreakDay[]>> {
-    try {
-      const response = await this.fetchWithAuth('/api/profile');
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new ApiError(data.message || 'Failed to fetch streak history', response.status);
-      }
-      
-      // Profile data includes streak history
-      return {
-        data: data.profile?.streakHistory || [],
-        status: response.status
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.get<StreakDay[]>('/profile/streak-history');
   }
 
   async updateStreak(update: StreakDay): Promise<ApiResponse<StreakDay>> {
-    try {
-      const response = await this.fetchWithAuth('/api/profile', {
-        method: 'PUT',
-        body: JSON.stringify({ streakDay: update })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new ApiError(data.message || 'Failed to update streak', response.status);
-      }
-      
-      return {
-        data: update, // Return the updated streak day
-        status: response.status
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.put<StreakDay>('/profile/streak', update);
   }
 
   // Penalty Task endpoints
   async getPenaltyTasks(): Promise<ApiResponse<PenaltyTask[]>> {
-    try {
-      const response = await this.fetchWithAuth('/api/workouts');
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new ApiError(data.message || 'Failed to fetch penalty tasks', response.status);
-      }
-      
-      // Convert penalties object to array of PenaltyTask
-      const penalties = data.penalties || { pushups: 0, situps: 0, squats: 0, milesRan: 0 };
-      const penaltyTasks: PenaltyTask[] = [];
-      
-      if (penalties.pushups > 0) {
-        penaltyTasks.push({
-          id: 'pushups-penalty',
-          exercise: 'Push-ups',
-          count: penalties.pushups,
-          unit: 'reps'
-        });
-      }
-      
-      if (penalties.situps > 0) {
-        penaltyTasks.push({
-          id: 'situps-penalty',
-          exercise: 'Sit-ups',
-          count: penalties.situps,
-          unit: 'reps'
-        });
-      }
-      
-      if (penalties.squats > 0) {
-        penaltyTasks.push({
-          id: 'squats-penalty',
-          exercise: 'Squats',
-          count: penalties.squats,
-          unit: 'reps'
-        });
-      }
-      
-      if (penalties.milesRan > 0) {
-        penaltyTasks.push({
-          id: 'running-penalty',
-          exercise: 'Miles to run',
-          count: penalties.milesRan,
-          unit: 'miles'
-        });
-      }
-      
-      return {
-        data: penaltyTasks,
-        status: response.status
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.get<PenaltyTask[]>('/workouts/penalties');
   }
 
   async updatePenaltyTask(id: string, updates: Partial<PenaltyTask>): Promise<ApiResponse<PenaltyTask>> {
@@ -684,34 +588,7 @@ export class RealApiService extends ApiService {
 
   // Bonus Task endpoints
   async getBonusTasks(): Promise<ApiResponse<BonusTask[]>> {
-    try {
-      const response = await this.fetchWithAuth('/api/workouts');
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new ApiError(data.message || 'Failed to fetch bonus tasks', response.status);
-      }
-      
-      const bonusTasks: BonusTask[] = [];
-      
-      if (data.bonusTask) {
-        bonusTasks.push({
-          id: 'daily-bonus',
-          description: data.bonusTask,
-          completed: false
-        });
-      }
-      
-      return {
-        data: bonusTasks,
-        status: response.status
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.get<BonusTask[]>('/workouts/bonuses');
   }
 
   async updateBonusTask(id: string, updates: Partial<BonusTask>): Promise<ApiResponse<BonusTask>> {
@@ -737,50 +614,16 @@ export class RealApiService extends ApiService {
 
   // Workout endpoints
   async getTodayWorkout(): Promise<ApiResponse<Workout>> {
-    try {
-      const response = await this.fetchWithAuth('/api/workouts');
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new ApiError(data.message || 'Failed to fetch today\'s workout', response.status);
-      }
-      
-      return {
-        data: data as Workout,
-        status: response.status
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.get<Workout>('/workouts/today');
   }
 
   async updateWorkoutProgress(exercises: Record<string, number>, completeBonusTask: boolean): Promise<ApiResponse<WorkoutResult>> {
-    try {
-      const response = await this.fetchWithAuth('/api/workouts', {
-        method: 'POST',
-        body: JSON.stringify({ exercises, completeBonusTask })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new ApiError(data.message || 'Failed to update workout progress', response.status);
-      }
-      
-      return {
-        data: data as WorkoutResult,
-        status: response.status
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.post<WorkoutResult>('/workouts/progress', { exercises, completeBonusTask });
+  }
+
+  async sendMessage(coachId: string, message: string): Promise<ApiResponse<string>> {
+    return this.post<string>(`/coaches/${coachId}/messages`, { message });
   }
 }
 
-export const realApiService = new RealApiService(); 
+export const apiService = new ApiService(); 

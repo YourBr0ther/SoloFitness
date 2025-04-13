@@ -6,7 +6,7 @@ import { Workout, WorkoutUpdate, WorkoutResult } from '../types/workout';
 import { Profile, StreakDay, GymBadge } from '../types/profile';
 import { Coach } from '../types/coach';
 
-export abstract class ApiService {
+export abstract class BaseApiService {
   protected baseUrl: string;
   private authToken: string | null = null;
   private requestTimeout = 10000; // 10 seconds

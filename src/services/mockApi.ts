@@ -1,9 +1,9 @@
-import { ApiService } from './api';
+import { BaseApiService } from './api';
 import { ApiResponse } from '../types/api';
 import { ApiError } from '../types/errors';
 import { User } from '../types/user';
-import { Exercise } from '../types/journal';
-import { Workout, WorkoutUpdate, WorkoutFilters } from '../types/workout';
+import { Exercise } from '../types/exercise';
+import { Workout, WorkoutUpdate, WorkoutFilters, WorkoutResult } from '../types/workout';
 import { Profile, StreakDay, GymBadge } from '../types/profile';
 import { UserSettings } from '../types/settings';
 import { Achievement, AchievementProgress, AchievementCategory } from '../types/achievements';
@@ -32,18 +32,37 @@ const mockExercises: Exercise[] = [
   {
     id: '1',
     name: 'Push-ups',
-    count: 0,
-    dailyGoal: 50,
-    increment: 1,
-    unit: 'reps'
+    description: 'A classic bodyweight exercise that targets chest, shoulders, and triceps',
+    muscleGroup: 'chest, shoulders, triceps',
+    equipment: 'none',
+    difficulty: 'beginner',
+    instructions: [
+      'Start in a plank position',
+      'Lower your body until your chest nearly touches the ground',
+      'Push back up to starting position'
+    ],
+    videoUrl: '/exercises/pushups.mp4',
+    imageUrl: '/exercises/pushups.jpg',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: '2',
     name: 'Sit-ups',
-    count: 0,
-    dailyGoal: 30,
-    increment: 1,
-    unit: 'reps'
+    description: 'A core strengthening exercise targeting abdominal muscles',
+    muscleGroup: 'core, abs',
+    equipment: 'none',
+    difficulty: 'beginner',
+    instructions: [
+      'Lie on your back with knees bent',
+      'Place hands behind head',
+      'Lift upper body towards knees',
+      'Lower back down with control'
+    ],
+    videoUrl: '/exercises/situps.mp4',
+    imageUrl: '/exercises/situps.jpg',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];
 
@@ -141,38 +160,51 @@ const mockAchievements: Achievement[] = [
   },
 ];
 
-export class MockApiService extends ApiService {
+export class MockApiService extends BaseApiService {
+  private createSuccessResponse<T>(data: T, status: number = 200): ApiResponse<T> {
+    return { data, status };
+  }
+
+  private createErrorResponse(message: string, status: number = 404, code: string = 'NOT_FOUND'): never {
+    throw new ApiError(message, status, code);
+  }
+
+  private findById<T extends { id: string }>(items: T[], id: string, entityName: string): T {
+    const item = items.find(i => i.id === id);
+    if (!item) {
+      this.createErrorResponse(`${entityName} not found`, 404);
+    }
+    return item!;
+  }
+
+  private updateById<T extends { id: string }>(items: T[], id: string, updates: Partial<T>, entityName: string): T {
+    const index = items.findIndex(i => i.id === id);
+    if (index === -1) {
+      this.createErrorResponse(`${entityName} not found`, 404);
+    }
+    items[index] = { ...items[index], ...updates };
+    return items[index];
+  }
+
   constructor() {
     super('http://mock-api');
   }
 
   // Authentication endpoints
   async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    return {
-      data: { user: mockUser, token: 'mock-token' },
-      status: 200
-    };
+    return this.createSuccessResponse({ user: mockUser, token: 'mock-token' });
   }
 
   async register(userData: Partial<User>): Promise<ApiResponse<{ user: User; token: string }>> {
-    return {
-      data: { user: mockUser, token: 'mock-token' },
-      status: 201
-    };
+    return this.createSuccessResponse({ user: mockUser, token: 'mock-token' }, 201);
   }
 
   async logout(): Promise<ApiResponse<void>> {
-    return {
-      data: undefined,
-      status: 200
-    };
+    return this.createSuccessResponse(undefined);
   }
 
   async refreshToken(): Promise<ApiResponse<{ token: string }>> {
-    return {
-      data: { token: 'mock-token' },
-      status: 200
-    };
+    return this.createSuccessResponse({ token: 'mock-refreshed-token' });
   }
 
   // User endpoints
@@ -192,31 +224,26 @@ export class MockApiService extends ApiService {
 
   // Exercise endpoints
   async getExercises(): Promise<ApiResponse<Exercise[]>> {
-    return {
-      data: mockExercises,
-      status: 200
-    };
+    return this.createSuccessResponse(mockExercises);
   }
 
   async getExercise(id: string): Promise<ApiResponse<Exercise>> {
-    const exercise = mockExercises.find(e => e.id === id);
-    if (!exercise) {
-      throw new ApiError('Exercise not found', 404);
-    }
-    return {
-      data: exercise,
-      status: 200
-    };
+    return this.createSuccessResponse(this.findById(mockExercises, id, 'Exercise'));
   }
 
   async createExercise(exerciseData: Partial<Exercise>): Promise<ApiResponse<Exercise>> {
     const newExercise: Exercise = {
       id: String(mockExercises.length + 1),
       name: exerciseData.name || '',
-      count: 0,
-      dailyGoal: exerciseData.dailyGoal || 50,
-      increment: exerciseData.increment || 1,
-      unit: exerciseData.unit || 'reps'
+      description: exerciseData.description || '',
+      muscleGroup: exerciseData.muscleGroup || 'chest',
+      equipment: exerciseData.equipment || 'none',
+      difficulty: exerciseData.difficulty || 'beginner',
+      instructions: exerciseData.instructions || ['No instructions provided'],
+      videoUrl: exerciseData.videoUrl || '',
+      imageUrl: exerciseData.imageUrl || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     mockExercises.push(newExercise);
     return {
@@ -238,30 +265,19 @@ export class MockApiService extends ApiService {
   }
 
   async deleteExercise(id: string): Promise<ApiResponse<void>> {
+    this.findById(mockExercises, id, 'Exercise'); // Verify exists
     const index = mockExercises.findIndex(e => e.id === id);
-    if (index === -1) {
-      throw new ApiError('Exercise not found', 404);
-    }
     mockExercises.splice(index, 1);
-    return {
-      data: undefined,
-      status: 204
-    };
+    return this.createSuccessResponse(undefined, 204);
   }
 
   // Profile endpoints
   async getProfile(): Promise<ApiResponse<Profile>> {
-    return {
-      data: mockProfile,
-      status: 200
-    };
+    return this.createSuccessResponse(mockProfile);
   }
 
   async updateProfile(updates: Partial<Profile>): Promise<ApiResponse<Profile>> {
-    return {
-      data: { ...mockProfile, ...updates },
-      status: 200
-    };
+    return this.createSuccessResponse({ ...mockProfile, ...updates });
   }
 
   // Achievement endpoints
@@ -292,21 +308,11 @@ export class MockApiService extends ApiService {
 
   // Coach endpoints
   async getCoaches(): Promise<ApiResponse<Coach[]>> {
-    return {
-      data: mockCoaches,
-      status: 200
-    };
+    return this.createSuccessResponse(mockCoaches);
   }
 
   async getCoach(id: string): Promise<ApiResponse<Coach>> {
-    const coach = mockCoaches.find(c => c.id === id);
-    if (!coach) {
-      throw new ApiError('Coach not found', 404, 'NOT_FOUND');
-    }
-    return {
-      data: coach,
-      status: 200
-    };
+    return this.createSuccessResponse(this.findById(mockCoaches, id, 'Coach'));
   }
 
   async createCoach(data: Omit<Coach, 'id'>): Promise<ApiResponse<Coach>> {
