@@ -593,28 +593,11 @@ export class ApiService extends BaseApiService {
 
   // Bonus Task endpoints
   async getBonusTasks(): Promise<ApiResponse<BonusTask[]>> {
-    return this.get<BonusTask[]>('/workouts/bonuses');
+    return this.get<BonusTask[]>('/workouts/bonus');
   }
 
   async updateBonusTask(id: string, updates: Partial<BonusTask>): Promise<ApiResponse<BonusTask>> {
-    try {
-      // For now, we just return the updated task
-      const task: BonusTask = {
-        id,
-        description: '',
-        completed: updates.completed || false
-      };
-      
-      return {
-        data: task,
-        status: 200
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
-    }
+    return this.put<BonusTask>(`/workouts/bonus/${id}`, updates);
   }
 
   // Workout endpoints
