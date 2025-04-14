@@ -10,7 +10,7 @@ import StreakPopup from "@/components/journal/StreakPopup";
 import { DailyExercise, PenaltyTask as PenaltyTaskType, BonusTask as BonusTaskType } from "@/types/journal";
 import { useData } from '@/contexts/DataContext';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
-import { User } from '@/types/user';
+import type { User } from '@/types/user';
 
 export default function JournalPage() {
   const { 
@@ -377,8 +377,9 @@ export default function JournalPage() {
       >
         <div className="w-full max-w-4xl space-y-4">
           <HeaderSection 
-            streakCount={streakCount} 
-            dailyXP={dailyXP} 
+            streakCount={profile?.currentStreak || 0}
+            dailyXP={profile?.xp || 0}
+            profile={profile}
           />
           
           <LevelProgress 
