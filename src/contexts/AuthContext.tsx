@@ -1,24 +1,18 @@
-import { createContext, useContext, useEffect, useState } from &apos;react';
-import { useRouter } from &apos;next/navigation';
-import Cookies from &apos;js-cookie';
+'use client';
 
- &apos;use client';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
+import { AUTH_CONFIG, PLATFORMS, Platform } from '@/config/auth';
+import { Auth } from '@/lib/auth';
+import { User } from '@/types/user';
 
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  profile?: {
-    level: number;
-    xp: number;
-    avatarUrl?: string;
-  };
-}
+const auth = Auth.getInstance();
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, platform?: Platform) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -32,10 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = Cookies.get('token');
+      const token = Cookies.get(AUTH_CONFIG.TOKEN_STORAGE_KEY) || localStorage.getItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
       if (!token) {
         setLoading(false);
-        // Only redirect if we're not already on the login page
         if (!window.location.pathname.includes('/login')) {
           router.push('/login');
         }
@@ -43,29 +36,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       try {
-        const response = await fetch('/api/auth/validate', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
+        const validatedUser = await auth.validateToken(token);
+        
+        if (validatedUser) {
+          setUser(validatedUser);
         } else {
-          // Clear invalid token
-          Cookies.remove('token');
+          // Try to refresh token if available
+          const refreshToken = localStorage.getItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
+          if (refreshToken) {
+            try {
+              const tokens = await auth.refreshToken(refreshToken);
+              
+              // Store new tokens
+              if (typeof window !== 'undefined') {
+                Cookies.set(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token);
+                localStorage.setItem(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token);
+                if (tokens.refreshToken) {
+                  localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken);
+                }
+              }
+
+              // Validate new token
+              const refreshedUser = await auth.validateToken(tokens.token);
+              if (refreshedUser) {
+                setUser(refreshedUser);
+                return;
+              }
+            } catch (error) {
+              console.error('Token refresh error:', error);
+            }
+          }
+
+          // Clear invalid tokens
+          Cookies.remove(AUTH_CONFIG.TOKEN_STORAGE_KEY);
+          localStorage.removeItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
+          localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
           setUser(null);
-          // Only redirect if we're not already on the login page
           if (!window.location.pathname.includes('/login')) {
             router.push('/login');
           }
         }
       } catch (error) {
         console.error('Token validation error:', error);
-        Cookies.remove('token');
+        Cookies.remove(AUTH_CONFIG.TOKEN_STORAGE_KEY);
+        localStorage.removeItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
+        localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
         setUser(null);
-        // Only redirect if we're not already on the login page
         if (!window.location.pathname.includes('/login')) {
           router.push('/login');
         }
@@ -77,24 +93,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [router]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, platform: Platform = PLATFORMS.WEB) => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: &apos;POST',
-        headers: {
-          &apos;Content-Type': &apos;application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      auth.setPlatform(platform);
+      const { user: authUser, tokens } = await auth.login(email, password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || &apos;Login failed');
+      // Store tokens based on platform
+      if (platform === PLATFORMS.WEB) {
+        Cookies.set(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token, { expires: 7 });
+      }
+      localStorage.setItem(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token);
+      
+      if (tokens.refreshToken) {
+        localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken);
       }
 
-      Cookies.set('token', data.token, { expires: 7 });
-      setUser(data.user);
+      setUser(authUser);
       router.push('/journal');
     } catch (error) {
       console.error('Login error:', error);
@@ -103,7 +117,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    Cookies.remove('token');
+    Cookies.remove(AUTH_CONFIG.TOKEN_STORAGE_KEY);
+    localStorage.removeItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
+    localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
     setUser(null);
     router.push('/login');
   };

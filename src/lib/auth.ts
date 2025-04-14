@@ -1,69 +1,76 @@
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { prisma } from './prisma';
+import { User } from '@/types/user';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.NEXT_PUBLIC_JWT_SECRET || 'your-secret-key';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-export interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    email: string;
-  };
-}
+export class Auth {
+  private static instance: Auth;
+  private platform: string = 'web';
 
-export async function authenticateRequest(request: Request): Promise<AuthenticatedRequest | NextResponse> {
-  const headersList = headers();
-  const authorization = headersList.get('Authorization');
+  private constructor() {}
 
-  if (!authorization?.startsWith('Bearer ')) {
-    return NextResponse.json(
-      { message: 'Unauthorized' },
-      { status: 401 }
-    );
+  static getInstance(): Auth {
+    if (!Auth.instance) {
+      Auth.instance = new Auth();
+    }
+    return Auth.instance;
   }
 
-  try {
-    const token = authorization.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+  setPlatform(platform: string) {
+    this.platform = platform;
+  }
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, email: true },
+  async login(email: string, password: string): Promise<{ user: User; tokens: { token: string; refreshToken?: string } }> {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, platform: this.platform }),
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 401 }
-      );
+    if (!response.ok) {
+      throw new Error('Login failed');
     }
 
-    const authRequest = request.clone() as AuthenticatedRequest;
-    authRequest.user = user;
-    return authRequest;
-  } catch (error) {
-    return NextResponse.json(
-      { message: 'Invalid token' },
-      { status: 401 }
-    );
+    return response.json();
+  }
+
+  async validateToken(token: string): Promise<User | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return null;
+    }
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ token: string; refreshToken?: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+
+    return response.json();
   }
 }
-
-// Wrapper for route handlers without params
-export function withAuth(handler: (req: AuthenticatedRequest) => Promise<NextResponse>) {
-  return async (request: Request) => {
-    const authResult = await authenticateRequest(request);
-    
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
-    return handler(authResult);
-  };
-}
-
-// Direct authentication for route handlers with params
-export async function withAuthDirect(request: Request): Promise<AuthenticatedRequest | NextResponse> {
-  return authenticateRequest(request);
-} 

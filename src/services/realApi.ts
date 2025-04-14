@@ -14,11 +14,13 @@ import { Feedback, FeedbackComment, FeedbackUpdate, FeedbackFilters, FeedbackSta
 import { Reminder, ReminderFilters, ReminderStats } from '../types/reminder';
 import { ExportJob, ExportOptions, ExportProgress, ExportResult } from '../types/export';
 import { ImportJob, ImportOptions, ImportProgress, ImportResult } from '../types/import';
-import { ApiResponse } from '../types/api';
+import { ApiResponse } from '@/types/api';
 import { CacheStrategy } from './cacheStrategy';
 import { SyncService } from './sync';
 import { OfflineService } from './offline';
 import { PenaltyTask, BonusTask } from '../types/journal';
+import { Platform, PLATFORMS } from '@/config/auth';
+import { AUTH_CONFIG } from '../config/auth';
 
 // Define missing types
 interface ExerciseFilters {
@@ -67,18 +69,30 @@ export class ApiService extends BaseApiService {
   private cacheStrategy: CacheStrategy;
   private syncService: SyncService;
   private offlineService: OfflineService;
+  private platform: Platform;
 
-  constructor() {
+  constructor(platform: Platform = PLATFORMS.WEB) {
     super('/api');
     this.cacheStrategy = CacheStrategy.getInstance();
     this.syncService = SyncService.getInstance(this);
     this.offlineService = OfflineService.getInstance(this.syncService);
+    this.platform = platform;
   }
 
   // Authentication endpoints
-  async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    const response = await this.post<{ user: User; token: string }>('/auth/login', { email, password });
+  async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string; refreshToken?: string }>> {
+    const response = await this.post<{ user: User; token: string; refreshToken?: string }>(
+      '/auth/login', 
+      { email, password, platform: this.platform }
+    );
+    
     this.setAuthToken(response.data.token);
+    
+    // Store refresh token for mobile/desktop platforms
+    if (response.data.refreshToken) {
+      localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, response.data.refreshToken);
+    }
+    
     return response;
   }
 
@@ -91,11 +105,18 @@ export class ApiService extends BaseApiService {
   async logout(): Promise<ApiResponse<void>> {
     const response = await this.post<void>('/auth/logout', {});
     this.setAuthToken(null);
+    localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
     return response;
   }
 
   async refreshToken(): Promise<ApiResponse<{ token: string }>> {
-    const response = await this.post<{ token: string }>('/auth/refresh', {});
+    const refreshToken = localStorage.getItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
+    
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
+    const response = await this.post<{ token: string }>('/auth/refresh', { refreshToken });
     this.setAuthToken(response.data.token);
     return response;
   }

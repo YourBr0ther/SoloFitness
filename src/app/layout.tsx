@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ApiProvider } from '@/contexts/ApiContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -37,9 +38,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-black text-white pb-16`}>
         <ApiProvider>
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
+          <AuthProvider>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </AuthProvider>
         </ApiProvider>
         <BottomNav />
       </body>

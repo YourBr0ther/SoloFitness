@@ -3,6 +3,48 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { AUTH_CONFIG } from "@/config/auth";
+
+function GlowingParticles() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
+
+  return (
+    <>
+      {[...Array(20)].map((_, i) => {
+        // Use a consistent seed based on index
+        const leftPos = ((i * 17) % 100);
+        const topPos = ((i * 23) % 100);
+        
+        return (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
+            style={{
+              left: `${leftPos}%`,
+              top: `${topPos}%`,
+            }}
+            animate={{
+              scale: [1, 1.5, 1],
+              opacity: [0.3, 0.8, 0.3],
+            }}
+            transition={{
+              duration: 2 + (i % 3),
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -19,10 +61,11 @@ export default function LoginPage() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
   const router = useRouter();
+  const { login } = useAuth();
 
   useEffect(() => {
     // Check if account is locked
-    const storedLockoutTime = localStorage.getItem('lockoutTime');
+    const storedLockoutTime = localStorage.getItem(AUTH_CONFIG.LOCKOUT_TIME_KEY);
     if (storedLockoutTime) {
       const timeLeft = parseInt(storedLockoutTime) - Date.now();
       if (timeLeft > 0) {
@@ -33,7 +76,7 @@ export default function LoginPage() {
             if (prev <= 1000) {
               clearInterval(timer);
               setIsLocked(false);
-              localStorage.removeItem('lockoutTime');
+              localStorage.removeItem(AUTH_CONFIG.LOCKOUT_TIME_KEY);
               return 0;
             }
             return prev - 1000;
@@ -41,7 +84,7 @@ export default function LoginPage() {
         }, 1000);
         return () => clearInterval(timer);
       } else {
-        localStorage.removeItem('lockoutTime');
+        localStorage.removeItem(AUTH_CONFIG.LOCKOUT_TIME_KEY);
       }
     }
   }, []);
@@ -77,52 +120,26 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const newFailedAttempts = failedAttempts + 1;
-        setFailedAttempts(newFailedAttempts);
-        
-        if (newFailedAttempts >= 5) {
-          const lockoutDuration = 5 * 60 * 1000; // 5 minutes
-          setIsLocked(true);
-          setLockoutTime(lockoutDuration);
-          localStorage.setItem('lockoutTime', (Date.now() + lockoutDuration).toString());
-          
-          setErrors({
-            general: `Too many failed attempts. Please try again in ${Math.ceil(lockoutDuration / 1000 / 60)} minutes.`
-          });
-        } else {
-          setErrors({
-            general: data.message || "Invalid email or password. Please try again."
-          });
-        }
-        return;
-      }
-
-      // Store token in localStorage and cookie
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      document.cookie = `token=${data.token}; path=/`;
-      
-      // Successful login
-      router.push('/journal');
+      await login(formData.email, formData.password);
+      // Login successful - AuthContext will handle the redirect
     } catch (error) {
       console.error('Login error:', error);
-      setErrors({
-        general: "An error occurred. Please try again later."
-      });
+      const newFailedAttempts = failedAttempts + 1;
+      setFailedAttempts(newFailedAttempts);
+      
+      if (newFailedAttempts >= AUTH_CONFIG.MAX_LOGIN_ATTEMPTS) {
+        setIsLocked(true);
+        setLockoutTime(AUTH_CONFIG.LOCKOUT_DURATION);
+        localStorage.setItem(AUTH_CONFIG.LOCKOUT_TIME_KEY, (Date.now() + AUTH_CONFIG.LOCKOUT_DURATION).toString());
+        
+        setErrors({
+          general: `Too many failed attempts. Please try again in ${Math.ceil(AUTH_CONFIG.LOCKOUT_DURATION / 1000 / 60)} minutes.`
+        });
+      } else {
+        setErrors({
+          general: error instanceof Error ? error.message : "Invalid email or password. Please try again."
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -135,31 +152,7 @@ export default function LoginPage() {
       
       {/* Glowing particles */}
       <div className="absolute inset-0 overflow-hidden">
-        {typeof window !== 'undefined' && [...Array(20)].map((_, i) => {
-          // Use a consistent seed based on index
-          const leftPos = ((i * 17) % 100);
-          const topPos = ((i * 23) % 100);
-          
-          return (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-[#00A8FF] rounded-full"
-              style={{
-                left: `${leftPos}%`,
-                top: `${topPos}%`,
-              }}
-              animate={{
-                scale: [1, 1.5, 1],
-                opacity: [0.3, 0.8, 0.3],
-              }}
-              transition={{
-                duration: 2 + (i % 3),
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          );
-        })}
+        <GlowingParticles />
       </div>
 
       {/* Content */}
