@@ -59,7 +59,13 @@ export default function ProfilePage() {
       try {
         setIsLoadingProfile(true);
         const response = await apiService.getProfile();
-        setProfile(response.data);
+        // Ensure badges is always an array
+        const profileData = {
+          ...defaultProfile,
+          ...response.data,
+          badges: response.data.badges || []
+        };
+        setProfile(profileData);
         setIsLoadingProfile(false);
       } catch (err: unknown) {
         console.error('Error loading profile:', err instanceof Error ? err.message : 'Unknown error');
@@ -77,6 +83,30 @@ export default function ProfilePage() {
 
     loadProfile();
   }, [router]);
+
+  // Show loading state
+  if (isLoadingProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (profileError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="text-red-500 mb-4">Error loading profile: {profileError.message}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   // Save profile changes to the API
   const saveProfileChanges = async (updatedProfile: Partial<Profile>) => {
@@ -128,7 +158,7 @@ export default function ProfilePage() {
   };
 
   // Check if there are any new badges
-  const hasNewBadges = profile.badges.some(badge => badge.isNew);
+  const hasNewBadges = Array.isArray(profile.badges) && profile.badges.some(badge => badge.isNew);
 
   const validateUsername = (username: string) => {
     if (username.length < 3) {
@@ -307,9 +337,7 @@ export default function ProfilePage() {
       setProfile(updatedProfile);
       
       // Save badge updates to API
-      for (const badge of updatedBadges.filter(b => b.isNew === false)) {
-        await saveProfileChanges({}, { badge });
-      }
+      await saveProfileChanges({ badges: updatedBadges });
     }
   };
 
@@ -343,33 +371,6 @@ export default function ProfilePage() {
       </div>
     ));
   };
-
-  if (isLoadingProfile) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl mb-4">Loading profile...</p>
-          <div className="w-12 h-12 rounded-full border-4 border-t-[#00A8FF] border-r-transparent border-b-transparent border-l-transparent animate-spin mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (profileError || !profile) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="text-center max-w-lg">
-          <p className="text-xl mb-4 text-red-500">{profileError?.message || 'Failed to load profile'}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-[#00A8FF] text-white rounded-lg"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-white p-4">

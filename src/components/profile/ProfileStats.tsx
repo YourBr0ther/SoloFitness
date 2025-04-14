@@ -7,14 +7,14 @@ interface ProfileStatsProps {
 
 export default function ProfileStats({ profile }: ProfileStatsProps) {
   // Calculate total XP
-  const totalXP = profile.streakHistory.reduce((sum, day) => sum + day.xpEarned, 0);
+  const totalXP = profile?.streakHistory?.reduce((sum, day) => sum + day.xpEarned, 0) || 0;
 
   // Calculate longest streak
   const calculateLongestStreak = () => {
     let currentStreak = 0;
     let longestStreak = 0;
     
-    profile.streakHistory.forEach(day => {
+    profile?.streakHistory?.forEach(day => {
       if (day.completed) {
         currentStreak++;
         longestStreak = Math.max(longestStreak, currentStreak);
@@ -27,15 +27,15 @@ export default function ProfileStats({ profile }: ProfileStatsProps) {
   };
 
   // Calculate total for each exercise type
-  const exerciseTotals = profile.streakHistory.reduce((totals, day) => {
+  const exerciseTotals = profile?.streakHistory?.reduce((totals, day) => {
     if (day.completed) {
-      totals.pushups += day.exercises.pushups;
-      totals.situps += day.exercises.situps;
-      totals.squats += day.exercises.squats;
-      totals.milesRan += day.exercises.milesRan;
+      totals.pushups += day.exercises?.pushups || 0;
+      totals.situps += day.exercises?.situps || 0;
+      totals.squats += day.exercises?.squats || 0;
+      totals.milesRan += day.exercises?.milesRan || 0;
     }
     return totals;
-  }, { pushups: 0, situps: 0, squats: 0, milesRan: 0 });
+  }, { pushups: 0, situps: 0, squats: 0, milesRan: 0 }) || { pushups: 0, situps: 0, squats: 0, milesRan: 0 };
 
   return (
     <>

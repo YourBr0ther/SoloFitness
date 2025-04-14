@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageSquare, BookOpen, User } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AUTH_CONFIG } from "@/config/auth";
 
 const BottomNav = () => {
   const pathname = usePathname();
@@ -11,7 +12,8 @@ const BottomNav = () => {
 
   useEffect(() => {
     // Check if token exists in cookies
-    const token = document.cookie.includes('token=');
+    const cookies = document.cookie;
+    const token = cookies ? cookies.includes(`${AUTH_CONFIG.TOKEN_STORAGE_KEY}=`) : false;
     setIsLoggedIn(token);
   }, [pathname]); // Re-check when pathname changes
 
