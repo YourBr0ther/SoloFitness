@@ -81,19 +81,29 @@ export class ApiService extends BaseApiService {
 
   // Authentication endpoints
   async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string; refreshToken?: string }>> {
-    const response = await this.post<{ user: User; token: string; refreshToken?: string }>(
+    const response = await this.post<{ user: User; tokens: { token: string; refreshToken?: string } }>(
       '/auth/login', 
       { email, password, platform: this.platform }
     );
     
-    this.setAuthToken(response.data.token);
+    // Extract token from the nested tokens object
+    const { user, tokens } = response.data;
+    this.setAuthToken(tokens.token);
     
     // Store refresh token for mobile/desktop platforms
-    if (response.data.refreshToken) {
-      localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, response.data.refreshToken);
+    if (tokens.refreshToken) {
+      localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken);
     }
     
-    return response;
+    // Return in the format expected by the frontend
+    return {
+      data: {
+        user,
+        token: tokens.token,
+        refreshToken: tokens.refreshToken
+      },
+      status: response.status
+    };
   }
 
   async register(userData: Partial<User>): Promise<ApiResponse<{ user: User; token: string }>> {

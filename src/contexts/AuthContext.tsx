@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { useRouter, usePathname } from 'next/navigation';
 import { AUTH_CONFIG, PLATFORMS, Platform } from '@/config/auth';
 import { Auth } from '@/lib/auth';
 import { User } from '@/types/user';
@@ -23,105 +22,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = Cookies.get(AUTH_CONFIG.TOKEN_STORAGE_KEY) || localStorage.getItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-      if (!token) {
-        setLoading(false);
-        if (!window.location.pathname.includes('/login')) {
-          router.push('/login');
-        }
-        return;
-      }
-      
       try {
-        const validatedUser = await auth.validateToken(token);
-        
-        if (validatedUser) {
-          setUser(validatedUser);
-        } else {
-          // Try to refresh token if available
-          const refreshToken = localStorage.getItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
-          if (refreshToken) {
-            try {
-              const tokens = await auth.refreshToken(refreshToken);
-              
-              // Store new tokens
-              if (typeof window !== 'undefined') {
-                Cookies.set(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token);
-                localStorage.setItem(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token);
-                if (tokens.refreshToken) {
-                  localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken);
-                }
-              }
+        const validatedUser = await auth.validateToken();
+        setUser(validatedUser);
 
-              // Validate new token
-              const refreshedUser = await auth.validateToken(tokens.token);
-              if (refreshedUser) {
-                setUser(refreshedUser);
-                return;
-              }
-            } catch (error) {
-              console.error('Token refresh error:', error);
-            }
-          }
-
-          // Clear invalid tokens
-          Cookies.remove(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-          localStorage.removeItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-          localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
-          setUser(null);
-          if (!window.location.pathname.includes('/login')) {
+        // Only redirect if we're on a protected route and not authenticated
+        if (!validatedUser && !pathname?.includes('/login') && !pathname?.includes('/register')) {
+          const protectedRoutes = ['/coach', '/journal', '/profile'];
+          if (protectedRoutes.some(route => pathname?.startsWith(route))) {
             router.push('/login');
           }
         }
       } catch (error) {
-        console.error('Token validation error:', error);
-        Cookies.remove(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-        localStorage.removeItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-        localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
+        console.error('Auth check error:', error);
         setUser(null);
-        if (!window.location.pathname.includes('/login')) {
-          router.push('/login');
-        }
       } finally {
         setLoading(false);
       }
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, pathname]);
 
   const login = async (email: string, password: string, platform: Platform = PLATFORMS.WEB) => {
     try {
+      setLoading(true);
       auth.setPlatform(platform);
-      const { user: authUser, tokens } = await auth.login(email, password);
-
-      // Store tokens based on platform
-      if (platform === PLATFORMS.WEB) {
-        Cookies.set(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token, { expires: 7 });
-      }
-      localStorage.setItem(AUTH_CONFIG.TOKEN_STORAGE_KEY, tokens.token);
-      
-      if (tokens.refreshToken) {
-        localStorage.setItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken);
-      }
-
-      setUser(authUser);
+      const response = await auth.login(email, password);
+      setUser(response.user);
       router.push('/journal');
     } catch (error) {
       console.error('Login error:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
-    Cookies.remove(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-    localStorage.removeItem(AUTH_CONFIG.TOKEN_STORAGE_KEY);
-    localStorage.removeItem(AUTH_CONFIG.REFRESH_TOKEN_STORAGE_KEY);
-    setUser(null);
-    router.push('/login');
+  const logout = async () => {
+    try {
+      setLoading(true);
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setUser(null);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -132,7 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       isAuthenticated: !!user
     }}>
-      {children}
+      {loading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00A8FF]"></div>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

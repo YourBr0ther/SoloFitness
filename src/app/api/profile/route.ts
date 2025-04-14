@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { AUTH_CONFIG } from '@/config/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Utility function for auth within this file
 async function getAuthToken() {
-  const headersList = await headers();
-  const authorization = headersList.get('Authorization');
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_CONFIG.TOKEN_STORAGE_KEY)?.value;
   
-  if (!authorization?.startsWith('Bearer ')) {
+  if (!token) {
     return null;
   }
   
   try {
-    const token = authorization.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
     return decoded;
   } catch (error) {

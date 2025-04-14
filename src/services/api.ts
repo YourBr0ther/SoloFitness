@@ -1,45 +1,44 @@
 import { ApiError } from '@/types/errors';
 import { ApiResponse } from '@/types/api';
 import { User } from '../types/user';
-import { Exercise, PenaltyTask, BonusTask } from '../types/journal';
-import { Workout, WorkoutUpdate, WorkoutResult } from '../types/workout';
+import { PenaltyTask, BonusTask, DailyExercise } from '../types/journal';
+import { Workout, WorkoutResult } from '../types/workout';
 import { Profile, StreakDay, GymBadge } from '../types/profile';
 import { Coach } from '../types/coach';
+import { AUTH_CONFIG } from '@/config/auth';
 
 export abstract class BaseApiService {
   protected baseUrl: string;
-  private authToken: string | null = null;
   private requestTimeout = 10000; // 10 seconds
   private maxRetries = 3;
   private retryDelay = 1000; // 1 second
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    // Load auth token from localStorage if available
-    if (typeof window !== 'undefined') {
-      this.authToken = localStorage.getItem('token');
-    }
+  }
+
+  private getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
   }
 
   setAuthToken(token: string | null) {
-    this.authToken = token;
     if (token) {
-      localStorage.setItem('token', token);
+      // Set cookie with secure options
+      const secure = process.env.NODE_ENV === 'production' ? 'Secure;' : '';
+      document.cookie = `${AUTH_CONFIG.TOKEN_STORAGE_KEY}=${token}; path=/; ${secure} SameSite=Lax; max-age=604800`; // 7 days
     } else {
-      localStorage.removeItem('token');
+      document.cookie = `${AUTH_CONFIG.TOKEN_STORAGE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
     }
   }
 
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+    return {
       'Content-Type': 'application/json',
     };
-
-    if (this.authToken) {
-      headers['Authorization'] = `Bearer ${this.authToken}`;
-    }
-
-    return headers;
   }
 
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
@@ -179,10 +178,10 @@ export abstract class BaseApiService {
   abstract updateUser(updates: Partial<User>): Promise<ApiResponse<User>>;
 
   // Exercise endpoints
-  abstract getExercises(): Promise<ApiResponse<Exercise[]>>;
-  abstract getExercise(id: string): Promise<ApiResponse<Exercise>>;
-  abstract createExercise(exerciseData: Partial<Exercise>): Promise<ApiResponse<Exercise>>;
-  abstract updateExercise(id: string, updates: Partial<Exercise>): Promise<ApiResponse<Exercise>>;
+  abstract getExercises(): Promise<ApiResponse<DailyExercise[]>>;
+  abstract getExercise(id: string): Promise<ApiResponse<DailyExercise>>;
+  abstract createExercise(exerciseData: Partial<DailyExercise>): Promise<ApiResponse<DailyExercise>>;
+  abstract updateExercise(id: string, updates: Partial<DailyExercise>): Promise<ApiResponse<DailyExercise>>;
   abstract deleteExercise(id: string): Promise<ApiResponse<void>>;
 
   // Profile endpoints
@@ -214,9 +213,7 @@ export abstract class BaseApiService {
   abstract getTodayWorkout(): Promise<ApiResponse<Workout>>;
   abstract updateWorkoutProgress(exercises: Record<string, number>, completeBonusTask: boolean): Promise<ApiResponse<WorkoutResult>>;
 
-  logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  protected clearAuth() {
+    document.cookie = `${AUTH_CONFIG.TOKEN_STORAGE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
   }
 } 

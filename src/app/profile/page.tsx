@@ -57,12 +57,6 @@ export default function ProfilePage() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
         setIsLoadingProfile(true);
         const response = await apiService.getProfile();
         setProfile(response.data);
@@ -72,7 +66,6 @@ export default function ProfilePage() {
         
         const apiError = err as ApiError;
         if (apiError?.status === 401) {
-          localStorage.removeItem('token');
           router.push('/login');
           return;
         }
@@ -88,12 +81,6 @@ export default function ProfilePage() {
   // Save profile changes to the API
   const saveProfileChanges = async (updatedProfile: Partial<Profile>) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
       const response = await apiService.updateProfile(updatedProfile);
       setProfile(prev => ({ ...prev, ...response.data }));
     } catch (err: unknown) {
@@ -101,7 +88,6 @@ export default function ProfilePage() {
       
       const apiError = err as ApiError;
       if (apiError?.status === 401) {
-        localStorage.removeItem('token');
         router.push('/login');
         return;
       }
@@ -282,9 +268,14 @@ export default function ProfilePage() {
     await saveProfileChanges({ preferences: updatedPreferences });
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem('token');
-    router.push('/login');
+  const handleSignOut = async () => {
+    try {
+      await apiService.logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      router.push('/login');
+    }
   };
 
   // Add a function to handle opening the sign out confirmation dialog
