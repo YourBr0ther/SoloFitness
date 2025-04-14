@@ -1,57 +1,70 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Coach } from "@/types/coach";
-import { COACHES } from "@/data/coaches";
+import React, { useEffect, useState } from 'react';
+import { Coach } from '@/types/coach';
+import { useApi } from '@/contexts/ApiContext';
 import CoachSelector from '@/components/coach/CoachSelector';
 import ChatInterface from '@/components/coach/ChatInterface';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
-import { mockApiService } from '@/services/mockApi';
 import { ApiError } from '@/types/errors';
 
 export default function CoachPage() {
-  const [selectedCoach, setSelectedCoach] = useState<Coach>(COACHES[0]);
-  const [isChangingCoach, setIsChangingCoach] = useState(false);
+  const { api } = useApi();
+  const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isChangingCoach, setIsChangingCoach] = useState(false);
 
-  useEffect(() => {
-    loadInitialCoach();
-  }, []);
-
-  const loadInitialCoach = async () => {
+  const loadDefaultCoach = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
-      const response = await mockApiService.getCoach(COACHES[0].id);
-      setSelectedCoach(response.data);
-    } catch (err) {
-      setError(err as ApiError);
+      setLoading(true);
+      // Get list of coaches and select the first one
+      const response = await api.getCoaches();
+      if (response.data.length > 0) {
+        const coachResponse = await api.getCoach(response.data[0].id);
+        setSelectedCoach(coachResponse.data);
+      } else {
+        setError(new ApiError('No coaches available', 404));
+      }
+    } catch (error) {
+      console.error('Error loading default coach:', error);
+      setError(error as ApiError);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadDefaultCoach();
+  }, [api]);
 
   const handleCoachSelect = async (coach: Coach) => {
     try {
-      setIsLoading(true);
-      setError(null);
-      const response = await mockApiService.getCoach(coach.id);
+      setLoading(true);
+      const response = await api.getCoach(coach.id);
       setSelectedCoach(response.data);
       setIsChangingCoach(false);
-    } catch (err) {
-      setError(err as ApiError);
+    } catch (error) {
+      console.error('Error loading coach:', error);
+      setError(error as ApiError);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  if (loading && !selectedCoach) {
+    return <div>Loading...</div>;
+  }
+
   if (error) {
     return (
-      <div className="p-4">
+      <div className="container mx-auto px-4 py-8">
         <ErrorDisplay 
           error={error} 
-          onRetry={loadInitialCoach}
+          onRetry={() => {
+            setError(null);
+            loadDefaultCoach();
+          }}
           className="mt-4"
         />
       </div>
@@ -59,39 +72,33 @@ export default function CoachPage() {
   }
 
   return (
-    <main className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Top Navigation */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <h1 className="text-2xl font-bold text-[#00A8FF]">Coach</h1>
-        <button
-          onClick={() => setIsChangingCoach(true)}
-          className="text-gray-400 hover:text-white transition-colors"
-          disabled={isLoading}
-        >
-          Change Coach
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        {isChangingCoach ? (
-          <div className="h-full overflow-y-auto">
-            <div className="p-4">
-              <CoachSelector 
-                onSelectCoach={handleCoachSelect} 
-                isChangingCoach={true}
-                onClose={() => setIsChangingCoach(false)}
-              />
-            </div>
-          </div>
-        ) : (
-          <ChatInterface 
-            selectedCoach={selectedCoach} 
-            onRequestChangeCoach={() => setIsChangingCoach(true)}
-            isLoading={isLoading}
+    <div className="flex flex-col h-screen">
+      {isChangingCoach ? (
+        <div className="p-4">
+          <CoachSelector 
+            onSelectCoach={handleCoachSelect} 
+            isChangingCoach={true}
+            onClose={() => setIsChangingCoach(false)}
           />
-        )}
-      </div>
-    </main>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col">
+          <button
+            onClick={() => setIsChangingCoach(true)}
+            className="text-gray-400 hover:text-white transition-colors"
+            disabled={loading}
+          >
+            Change Coach
+          </button>
+          {selectedCoach && (
+            <ChatInterface 
+              selectedCoach={selectedCoach} 
+              onRequestChangeCoach={() => setIsChangingCoach(true)}
+              isLoading={loading}
+            />
+          )}
+        </div>
+      )}
+    </div>
   );
 } 

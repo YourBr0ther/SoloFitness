@@ -2,22 +2,18 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { ApiService } from '@/services/realApi';
-import { mockApiService } from '@/services/mockApi';
 
 interface ApiContextType {
-  api: ApiService | typeof mockApiService;
-  isMock: boolean;
+  api: ApiService;
 }
 
 const ApiContext = createContext<ApiContextType | undefined>(undefined);
 
 export function ApiProvider({ children }: { children: ReactNode }) {
-  // In development, we can use mock data. In production, use real API
-  const isMock = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_MOCK_API === 'true';
-  const api = isMock ? mockApiService : new ApiService();
+  const api = new ApiService();
 
   return (
-    <ApiContext.Provider value={{ api, isMock }}>
+    <ApiContext.Provider value={{ api }}>
       {children}
     </ApiContext.Provider>
   );

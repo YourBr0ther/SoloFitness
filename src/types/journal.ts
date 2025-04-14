@@ -16,9 +16,8 @@ export interface PenaltyTask {
 
 export interface BonusTask {
   id: string;
-  exercise: string;
-  count: number;
-  unit: string;
+  description: string;
+  completed: boolean;
 }
 
 export interface DailyExercise {

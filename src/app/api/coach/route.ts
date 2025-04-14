@@ -4,8 +4,7 @@ import { ApiService } from '@/services/realApi';
 
 const api = new ApiService();
 
-// GET /api/coaches - Get all coaches
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const authResult = await withAuthDirect(request);
   
   // If authResult is a NextResponse, it means authentication failed
@@ -14,12 +13,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const response = await api.getCoaches();
+    const { message } = await request.json();
+
+    if (!message) {
+      return NextResponse.json(
+        { error: 'Message is required' },
+        { status: 400 }
+      );
+    }
+
+    const response = await api.sendMessage(authResult.user.id, message);
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error('Error fetching coaches:', error);
+    console.error('Coach API Error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch coaches' },
+      { error: 'Failed to process message' },
       { status: 500 }
     );
   }

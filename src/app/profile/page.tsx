@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Profile, StreakDay, NotificationTime, GymBadge } from "@/types/profile";
-import { MOCK_PROFILE } from "@/data/profile";
 import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award, Plus, Trash2, Key } from "lucide-react";
 import Image from "next/image";
 import StreakCalendar from "@/components/profile/StreakCalendar";
@@ -11,12 +10,21 @@ import BadgesPopup from "@/components/profile/BadgesPopup";
 import APIKeyPopup from "@/components/profile/APIKeyPopup";
 import SignOutConfirmation from "@/components/profile/SignOutConfirmation";
 import { useRouter } from "next/navigation";
+import { apiService } from "@/services/realApi";
+import Badge from "@/components/common/Badge";
+
+interface ApiError extends Error {
+  status?: number;
+}
 
 // Default profile structure for initialization
 const defaultProfile: Profile = {
   id: "",
   username: "",
   avatarUrl: "/default-avatar.svg",
+  level: 1,
+  xp: 0,
+  currentStreak: 0,
   streakHistory: [],
   notifications: [],
   preferences: {
@@ -29,6 +37,8 @@ const defaultProfile: Profile = {
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState<Error | null>(null);
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [tempUsername, setTempUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
@@ -45,87 +55,38 @@ export default function ProfilePage() {
 
   // Load profile data from API
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfile = async () => {
       try {
-        setLoading(true);
-        // Get token from localStorage
         const token = localStorage.getItem('token');
         if (!token) {
           router.push('/login');
           return;
         }
 
-        const response = await fetch('/api/profile', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            // Unauthorized, redirect to login
-            localStorage.removeItem('token');
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to fetch profile');
-        }
-
-        const data = await response.json();
+        setIsLoadingProfile(true);
+        const response = await apiService.getProfile();
+        setProfile(response.data);
+        setIsLoadingProfile(false);
+      } catch (err: unknown) {
+        console.error('Error loading profile:', err instanceof Error ? err.message : 'Unknown error');
         
-        // Transform API data to match our Profile type
-        const transformedProfile: Profile = {
-          id: data.id,
-          username: data.username,
-          avatarUrl: data.profile?.avatarUrl || "/default-avatar.svg",
-          // Transform streak history
-          streakHistory: data.profile?.streakHistory?.map((day: any) => ({
-            id: day.id,
-            date: day.date,
-            completed: day.completed,
-            xpEarned: day.xpEarned,
-            exercises: day.exercises
-          })) || [],
-          // Create notification objects from reminderTimes array
-          notifications: (data.settings?.reminderTimes || []).map((time: string, index: number) => ({
-            id: `notification-${index}`,
-            time,
-            enabled: data.settings.enableNotifications
-          })),
-          // Transform preferences
-          preferences: {
-            enablePenalties: data.settings?.enablePenalties ?? true,
-            enableBonuses: data.settings?.enableBonuses ?? true
-          },
-          // Transform badges
-          badges: data.profile?.badges?.map((badge: any) => ({
-            id: badge.id,
-            name: badge.name,
-            description: badge.description,
-            icon: badge.icon,
-            unlocked: badge.unlocked,
-            progress: badge.progress,
-            total: badge.total,
-            isNew: badge.isNew
-          })) || [],
-          apiKey: "" // We don't store API keys on the server
-        };
-
-        setProfile(transformedProfile);
-        setTempUsername(transformedProfile.username);
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        setError('Failed to load profile. Please try again later.');
-      } finally {
-        setLoading(false);
+        const apiError = err as ApiError;
+        if (apiError?.status === 401) {
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        }
+        
+        setProfileError(err as Error);
+        setIsLoadingProfile(false);
       }
     };
 
-    fetchProfile();
+    loadProfile();
   }, [router]);
 
   // Save profile changes to the API
-  const saveProfileChanges = async (updatedProfile: Partial<Profile>, updatedSettings?: any) => {
+  const saveProfileChanges = async (updatedProfile: Partial<Profile>) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -133,46 +94,18 @@ export default function ProfilePage() {
         return;
       }
 
-      // Transform Profile data to match API expectations
-      const apiData: any = {};
+      const response = await apiService.updateProfile(updatedProfile);
+      setProfile(prev => ({ ...prev, ...response.data }));
+    } catch (err: unknown) {
+      console.error('Error updating profile:', err instanceof Error ? err.message : 'Unknown error');
       
-      if (updatedProfile.username) {
-        apiData.username = updatedProfile.username;
-      }
-      
-      if (updatedProfile) {
-        apiData.profile = {
-          avatarUrl: updatedProfile.avatarUrl,
-          // Include other profile fields if needed
-        };
+      const apiError = err as ApiError;
+      if (apiError?.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
       }
       
-      if (updatedSettings || updatedProfile.notifications || updatedProfile.preferences) {
-        apiData.settings = {
-          ...(updatedSettings || {}),
-          enableNotifications: updatedProfile.notifications?.some(n => n.enabled) ?? true,
-          reminderTimes: updatedProfile.notifications?.map(n => n.time) || [],
-          enablePenalties: updatedProfile.preferences?.enablePenalties,
-          enableBonuses: updatedProfile.preferences?.enableBonuses
-        };
-      }
-
-      const response = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(apiData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile');
-      }
-
-      // Update was successful, can process any additional logic here
-    } catch (err) {
-      console.error('Error saving profile:', err);
       setError('Failed to save changes. Please try again later.');
     }
   };
@@ -305,7 +238,7 @@ export default function ProfilePage() {
     setTempTime(e.target.value);
   };
 
-  const saveTimeChange = async () => {
+  const handleSaveTime = async () => {
     if (!editingTimeId) return;
 
     const updatedNotifications = profile.notifications.map(notification =>
@@ -313,7 +246,7 @@ export default function ProfilePage() {
         ? { ...notification, time: tempTime }
         : notification
     );
-    
+
     const updatedProfile = {
       ...profile,
       notifications: updatedNotifications
@@ -321,6 +254,7 @@ export default function ProfilePage() {
     
     setProfile(updatedProfile);
     setEditingTimeId(null);
+    setTempTime("");
     
     // Save to API
     await saveProfileChanges({ notifications: updatedNotifications });
@@ -394,7 +328,32 @@ export default function ProfilePage() {
     localStorage.setItem('apiKey', newKey);
   };
 
-  if (loading) {
+  const handleBadgeClick = (badge: GymBadge) => {
+    setShowBadges(true);
+  };
+
+  const renderBadges = () => {
+    return profile.badges.map((badge: GymBadge) => (
+      <div
+        key={badge.id}
+        className="cursor-pointer"
+        onClick={() => handleBadgeClick(badge)}
+      >
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-800 hover:bg-gray-700">
+          <Award className={`w-6 h-6 ${badge.unlocked ? 'text-yellow-400' : 'text-gray-400'}`} />
+          <div>
+            <div className="font-semibold">{badge.name}</div>
+            <div className="text-sm text-gray-400">{badge.description}</div>
+          </div>
+          {badge.isNew && (
+            <span className="ml-2 px-2 py-1 text-xs bg-blue-500 text-white rounded-full">New</span>
+          )}
+        </div>
+      </div>
+    ));
+  };
+
+  if (isLoadingProfile) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="text-center">
@@ -405,11 +364,11 @@ export default function ProfilePage() {
     );
   }
 
-  if (error) {
+  if (profileError || !profile) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="text-center max-w-lg">
-          <p className="text-xl mb-4 text-red-500">{error}</p>
+          <p className="text-xl mb-4 text-red-500">{profileError?.message || 'Failed to load profile'}</p>
           <button 
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-[#00A8FF] text-white rounded-lg"
@@ -610,7 +569,7 @@ export default function ProfilePage() {
                       aria-label="Time input"
                     />
                     <button
-                      onClick={saveTimeChange}
+                      onClick={handleSaveTime}
                       className="text-green-500 hover:text-green-400"
                       aria-label="Save time"
                     >

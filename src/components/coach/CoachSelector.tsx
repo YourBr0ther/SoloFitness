@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Coach } from '@/types/coach';
-import { COACHES } from '@/data/coaches';
-import { mockApiService } from '@/services/mockApi';
+import { useApi } from '@/contexts/ApiContext';
 import { ApiError } from '@/types/errors';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
 
@@ -15,6 +14,7 @@ interface CoachSelectorProps {
 }
 
 export default function CoachSelector({ onSelectCoach, isChangingCoach, onClose }: CoachSelectorProps) {
+  const { api } = useApi();
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -27,7 +27,7 @@ export default function CoachSelector({ onSelectCoach, isChangingCoach, onClose 
     try {
       setIsLoading(true);
       setError(null);
-      const response = await mockApiService.getCoaches();
+      const response = await api.getCoaches();
       setCoaches(response.data);
     } catch (err) {
       setError(err as ApiError);

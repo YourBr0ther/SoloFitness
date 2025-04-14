@@ -8,20 +8,27 @@ import PenaltyTask from "@/components/journal/PenaltyTask";
 import BonusTask from "@/components/journal/BonusTask";
 import StreakPopup from "@/components/journal/StreakPopup";
 import { DailyExercise, PenaltyTask as PenaltyTaskType, BonusTask as BonusTaskType } from "@/types/journal";
-import { useData } from '@/contexts/DataContext';
+import { useApi } from '@/contexts/ApiContext';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import type { User } from '@/types/user';
+import type { Workout } from '@/types/workout';
+import type { Profile } from '@/types/profile';
 
 export default function JournalPage() {
-  const { 
-    todayWorkout,
-    loadTodayWorkout,
-    updateWorkoutProgress,
-    workoutError,
-    profile,
-    loadProfile,
-    profileError
-  } = useData();
+  const { api } = useApi();
+  
+  // Data states
+  const [todayWorkout, setTodayWorkout] = useState<Workout | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  
+  // Loading states
+  const [isLoadingWorkout, setIsLoadingWorkout] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  
+  // Error states
+  const [workoutError, setWorkoutError] = useState<Error | null>(null);
+  const [profileError, setProfileError] = useState<Error | null>(null);
   
   const [showCompleteButton, setShowCompleteButton] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
@@ -45,6 +52,36 @@ export default function JournalPage() {
   });
 
   // Load workout data
+  const loadTodayWorkout = useCallback(async () => {
+    try {
+      setIsLoadingWorkout(true);
+      setWorkoutError(null);
+      const response = await api.getTodayWorkout();
+      setTodayWorkout(response.data);
+    } catch (error) {
+      setWorkoutError(error as Error);
+      console.error('Error loading workout:', error);
+    } finally {
+      setIsLoadingWorkout(false);
+    }
+  }, [api]);
+
+  // Load profile data
+  const loadProfile = useCallback(async () => {
+    try {
+      setIsLoadingProfile(true);
+      setProfileError(null);
+      const response = await api.getProfile();
+      setProfile(response.data);
+    } catch (error) {
+      setProfileError(error as Error);
+      console.error('Error loading profile:', error);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  }, [api]);
+
+  // Initial data loading
   useEffect(() => {
     loadTodayWorkout();
     loadProfile();
@@ -225,90 +262,76 @@ export default function JournalPage() {
   };
 
   const playSuccessSound = () => {
-    const audio = new Audio('/success.mp3');
-    audio.play().catch(error => console.log('Audio playback failed:', error));
+    try {
+      const audio = new Audio('/success.mp3');
+      audio.play().catch(error => console.log('Audio playback failed:', error));
+    } catch (error) {
+      console.error('Error playing success sound:', error);
+    }
   };
 
-  // Debounced save function with retry mechanism
-  const debouncedSave = useCallback((newExercises: DailyExercise[]) => {
-    console.log('debouncedSave called with:', newExercises);
+  const handleUpdateExercise = useCallback(async (id: string, count: number) => {
+    const updatedExercises = exercises.map(exercise =>
+      exercise.id === id ? { ...exercise, count } : exercise
+    );
+    setExercises(updatedExercises);
+
+    // Clear any existing timeout
     if (saveTimeout) {
       clearTimeout(saveTimeout);
     }
 
+    // Set a new timeout to save changes
     const timeout = setTimeout(async () => {
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          const exerciseData = {
-            pushups: newExercises.find(ex => ex.id === 'pushups')?.count || 0,
-            situps: newExercises.find(ex => ex.id === 'situps')?.count || 0,
-            squats: newExercises.find(ex => ex.id === 'squats')?.count || 0,
-            milesRan: newExercises.find(ex => ex.id === 'milesRan')?.count || 0
-          };
-          
-          console.log('Attempting to save exercise data:', exerciseData);
-          await updateWorkoutProgress(exerciseData, completedBonusTask);
-          console.log('Exercise data saved successfully');
-          break; // Success, exit retry loop
-        } catch (error) {
-          console.error(`Failed to save exercise progress (${retries} retries left):`, error);
-          retries--;
-          if (retries === 0) {
-            // Show error to user on final retry
-            alert('Failed to save your progress. Please check your connection and try again.');
-          } else {
-            // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
+      try {
+        const exerciseData = updatedExercises.reduce((acc, exercise) => ({
+          ...acc,
+          [exercise.id]: exercise.count
+        }), {});
+
+        await api.updateWorkoutProgress(exerciseData, completedBonusTask);
+        
+        // Refresh workout data after successful update
+        loadTodayWorkout();
+      } catch (error) {
+        console.error('Error saving exercise progress:', error);
+        // Optionally show error to user
       }
-    }, 1000);
+    }, 1000); // Debounce for 1 second
 
     setSaveTimeout(timeout);
-  }, [updateWorkoutProgress, completedBonusTask, saveTimeout]);
-
-  const handleUpdateExercise = (id: string, count: number) => {
-    const newExercises = exercises.map(ex => 
-      ex.id === id ? { ...ex, count } : ex
-    );
-    setExercises(newExercises);
-    
-    // Trigger debounced save
-    debouncedSave(newExercises);
-  };
+  }, [exercises, saveTimeout, completedBonusTask, api, loadTodayWorkout]);
 
   const handleCompleteTraining = async () => {
     if (isSubmitting) return;
-    
-    setIsSubmitting(true);
-    
+
     try {
-      // Convert exercises array to the format expected by the API
-      const exerciseData = {
-        pushups: exercises.find(ex => ex.id === 'pushups')?.count || 0,
-        situps: exercises.find(ex => ex.id === 'situps')?.count || 0,
-        squats: exercises.find(ex => ex.id === 'squats')?.count || 0,
-        milesRan: exercises.find(ex => ex.id === 'milesRan')?.count || 0
-      };
-      
-      // Update workout progress
-      await updateWorkoutProgress(exerciseData, completedBonusTask);
-      
-      // Play success sound
-      playSuccessSound();
+      setIsSubmitting(true);
 
-      // Trigger screen pulse animation
-      setIsPulsing(true);
-      setTimeout(() => setIsPulsing(false), 1000);
+      // Prepare exercise data
+      const exerciseData = exercises.reduce((acc, exercise) => ({
+        ...acc,
+        [exercise.id]: exercise.count
+      }), {});
 
-      // Show streak popup
-      setShowStreakPopup(true);
-      setTimeout(() => {
-        setShowStreakPopup(false);
-      }, 3000);
+      // Submit workout completion
+      const result = await api.updateWorkoutProgress(exerciseData, completedBonusTask);
+
+      // Handle successful completion
+      if (result.data) {
+        setShowStreakPopup(true);
+        playSuccessSound();
+        setIsPulsing(true);
+
+        // Refresh data
+        await Promise.all([
+          loadProfile(),
+          loadTodayWorkout()
+        ]);
+      }
     } catch (error) {
-      console.error('Failed to complete training:', error);
+      console.error('Error completing training:', error);
+      // Show error to user
     } finally {
       setIsSubmitting(false);
     }
@@ -316,127 +339,103 @@ export default function JournalPage() {
 
   const handleCompleteBonus = () => {
     setCompletedBonusTask(true);
-    setBonusTask(bonusTask ? { ...bonusTask, completed: true } : null);
+    if (bonusTask) {
+      setBonusTask({
+        ...bonusTask,
+        completed: true
+      });
+    }
   };
 
-  // Calculate level and XP progress
-  const calculateLevelAndXP = () => {
-    if (!profile) return { level: 1, currentXP: 0, maxXP: 100 };
-    
-    const level = profile.level || 1;
-    const currentXP = profile.xp % 100;
-    const maxXP = 100;
-    
-    return { level, currentXP, maxXP };
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout);
-      }
-    };
-  }, [saveTimeout]);
-
-  if (workoutError || profileError) {
+  // Show loading state
+  if (isLoadingWorkout || isLoadingProfile) {
     return (
-      <div className="p-4">
-        {workoutError && (
-          <ErrorDisplay 
-            error={workoutError} 
-            onRetry={loadTodayWorkout}
-            className="mb-4"
-          />
-        )}
-        {profileError && (
-          <ErrorDisplay 
-            error={profileError} 
-            onRetry={loadProfile}
-          />
-        )}
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
       </div>
     );
   }
 
-  const { level, currentXP, maxXP } = calculateLevelAndXP();
-  const streakCount = profile?.currentStreak || 0;
-  const dailyXP = 0; // We'll calculate this from the completed workout
+  // Show error state
+  if (workoutError || profileError) {
+    return (
+      <div className="p-4">
+        <ErrorDisplay 
+          error={workoutError || profileError} 
+          onRetry={() => {
+            loadTodayWorkout();
+            loadProfile();
+          }} 
+        />
+      </div>
+    );
+  }
+
+  // Calculate XP progress
+  const currentXP = profile?.xp ? profile.xp % 100 : 0;
+  const maxXP = 100;
 
   return (
-    <>
-      {showStreakPopup && (
-        <StreakPopup streakCount={streakCount} onClose={() => setShowStreakPopup(false)} />
-      )}
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <HeaderSection 
+        streakCount={profile?.currentStreak || 0}
+        dailyXP={profile?.xp || 0}
+        profile={profile}
+      />
       
-      <main 
-        className={`flex min-h-screen flex-col items-center p-4 pb-20 transition-all duration-300 
-          ${isPulsing ? 'scale-105' : 'scale-100'}
-          ${showStreakPopup ? 'opacity-20 pointer-events-none' : 'opacity-100'}
-          ${showPenaltyComplete ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}
-      >
-        <div className="w-full max-w-4xl space-y-4">
-          <HeaderSection 
-            streakCount={profile?.currentStreak || 0}
-            dailyXP={profile?.xp || 0}
-            profile={profile}
+      <LevelProgress 
+        currentLevel={profile?.level || 1}
+        currentXP={currentXP}
+        maxXP={maxXP}
+      />
+
+      <div className="mt-8 space-y-6">
+        {exercises.map(exercise => (
+          <ExerciseCard
+            key={exercise.id}
+            exercise={exercise}
+            onUpdateCount={(count) => handleUpdateExercise(exercise.id, count)}
           />
-          
-          <LevelProgress 
-            currentLevel={level} 
-            currentXP={currentXP} 
-            maxXP={maxXP} 
-          />
+        ))}
+      </div>
 
-          {/* Daily Tasks Section */}
-          <div className="space-y-4">
-            {exercises.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                onUpdateCount={(count) => handleUpdateExercise(exercise.id, count)}
-              />
-            ))}
-          </div>
+      {penaltyTask && !showPenaltyComplete && (
+        <PenaltyTask
+          task={penaltyTask}
+          progress={penaltyProgress}
+          onIncrement={handleIncrementPenalty}
+          onDecrement={handleDecrementPenalty}
+          isTransitioning={isPenaltyTransitioning}
+        />
+      )}
 
-          {/* Special Tasks Section */}
-          <div className="space-y-4">
-            {penaltyTask && (
-              <PenaltyTask
-                task={penaltyTask}
-                progress={penaltyProgress}
-                onIncrement={handleIncrementPenalty}
-                onDecrement={handleDecrementPenalty}
-                isTransitioning={isPenaltyTransitioning}
-              />
-            )}
+      {bonusTask && !completedBonusTask && (
+        <BonusTask
+          task={bonusTask}
+          onComplete={handleCompleteBonus}
+        />
+      )}
 
-            {bonusTask && !penaltyTask && (
-              <BonusTask
-                task={bonusTask}
-                onComplete={handleCompleteBonus}
-              />
-            )}
-          </div>
+      {showCompleteButton && (
+        <button
+          onClick={handleCompleteTraining}
+          disabled={isSubmitting}
+          className={`
+            w-full mt-8 py-4 px-6 rounded-lg bg-blue-600 text-white font-semibold
+            ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}
+            transition-colors duration-200
+          `}
+        >
+          {isSubmitting ? 'Completing...' : 'Complete Training'}
+        </button>
+      )}
 
-          {/* Complete Button */}
-          {showCompleteButton && (
-            <button
-              onClick={handleCompleteTraining}
-              disabled={isSubmitting}
-              className="w-full py-4 bg-[#00A8FF] text-black font-bold text-xl rounded-lg
-                      hover:bg-[#00B8FF] transform hover:scale-105 transition-all duration-300
-                      shadow-[0_0_20px_rgba(0,168,255,0.5)] hover:shadow-[0_0_30px_rgba(0,168,255,0.7)]
-                      disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 
-                "Completing Training..." : 
-                "Complete Today's Training"
-              }
-            </button>
-          )}
-        </div>
-      </main>
-    </>
+      {showStreakPopup && (
+        <StreakPopup
+          streakCount={profile?.currentStreak || 0}
+          onClose={() => setShowStreakPopup(false)}
+        />
+      )}
+    </div>
   );
 } 

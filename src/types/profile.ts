@@ -13,6 +13,10 @@ export interface Profile {
   };
   badges: GymBadge[];
   apiKey: string;
+  reminderTimes?: string[];
+  enableNotifications?: boolean;
+  enablePenalties?: boolean;
+  enableBonuses?: boolean;
 }
 
 export interface StreakDay {

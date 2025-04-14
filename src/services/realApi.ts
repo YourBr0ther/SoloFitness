@@ -567,28 +567,16 @@ export class ApiService extends BaseApiService {
   }
 
   async updatePenaltyTask(id: string, updates: Partial<PenaltyTask>): Promise<ApiResponse<PenaltyTask>> {
-    // In a real implementation, we'd update the penalty task status
-    // For now, we just return the updated penalty task
-    try {
-      const task: PenaltyTask = {
-        id,
-        exercise: id.includes('pushups') ? 'Push-ups' : 
-                  id.includes('situps') ? 'Sit-ups' : 
-                  id.includes('squats') ? 'Squats' : 'Miles to run',
-        count: updates.count || 0,
-        unit: id.includes('running') ? 'miles' : 'reps'
-      };
-      
-      return {
-        data: task,
-        status: 200
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Network error', 500);
+    if (this.offlineService.isOffline()) {
+      const operationId = await this.offlineService.createOperation('update', `/penalty-tasks/${id}`, updates);
+      return { data: updates as PenaltyTask, status: 202 }; // Accepted
     }
+
+    await this.syncService.addToQueue(`/penalty-tasks/${id}`, 'PUT', updates, {
+      priority: 'normal',
+      conflictResolution: 'merge'
+    });
+    return { data: updates as PenaltyTask, status: 202 }; // Accepted
   }
 
   // Bonus Task endpoints
