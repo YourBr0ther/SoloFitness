@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { authenticate } from '@/lib/auth-helper';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 // GET /api/badges - Get user's badges
 export async function GET() {
@@ -14,26 +15,23 @@ export async function GET() {
   }
 
   try {
-    // Get user's badges
-    const userProfile = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        profile: {
-          include: {
-            badges: true
-          }
-        }
-      }
-    });
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
+    // Get user's profile with badges
+    const userProfile = await db.collection('profiles').findOne(
+      { userId: new ObjectId(user.id) },
+      { projection: { badges: 1 } }
+    );
 
-    if (!userProfile || !userProfile.profile) {
+    if (!userProfile) {
       return NextResponse.json(
         { message: 'User profile not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(userProfile.profile.badges);
+    return NextResponse.json(userProfile.badges || []);
     
   } catch (error) {
     console.error('Error fetching badges:', error);

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { prisma } from './prisma';
+import clientPromise from './mongodb';
+import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -50,10 +51,12 @@ export async function authenticateRequest(): Promise<{ user: AuthUser } | { erro
   }
   
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userToken.userId },
-      select: { id: true, email: true },
-    });
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    const user = await db.collection('users').findOne(
+      { _id: new ObjectId(userToken.userId) },
+      { projection: { _id: 1, email: 1 } }
+    );
     
     if (!user) {
       return {
@@ -64,7 +67,12 @@ export async function authenticateRequest(): Promise<{ user: AuthUser } | { erro
       };
     }
     
-    return { user };
+    return { 
+      user: {
+        id: user._id.toString(),
+        email: user.email
+      }
+    };
   } catch (error) {
     console.error('Database error during authentication:', error);
     return {

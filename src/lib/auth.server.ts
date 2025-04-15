@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { prisma } from './prisma';
 import { User } from '@/types/user';
 import { AUTH_CONFIG } from '@/config/auth';
+import clientPromise from './mongodb';
+import { ObjectId } from 'mongodb';
 
 if (!process.env.JWT_SECRET) {
   console.error('[AuthService] JWT_SECRET environment variable is not set');
@@ -12,10 +13,12 @@ if (!process.env.JWT_SECRET) {
 const JWT_SECRET = process.env.JWT_SECRET;
 const SALT_ROUNDS = 10;
 
-// Helper function to convert Prisma User to API User
+// Helper function to convert MongoDB User to API User
 function convertUser(user: any): User {
   return {
-    ...user,
+    id: user._id.toString(),
+    email: user.email,
+    username: user.username,
     createdAt: user.createdAt?.toISOString(),
     updatedAt: user.updatedAt?.toISOString(),
   };
@@ -24,9 +27,7 @@ function convertUser(user: any): User {
 export class AuthService {
   private static instance: AuthService;
 
-  private constructor() {
-    console.log('[AuthService] Initializing AuthService instance');
-  }
+  private constructor() {}
 
   static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -38,35 +39,21 @@ export class AuthService {
   async login(email: string, password: string): Promise<{ user: User; tokens: { token: string; refreshToken: string } }> {
     console.log('[AuthService] Login attempt for email:', email);
     
-    let prismaUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
+    // Find user by email
+    const user = await db.collection('users').findOne({ email });
 
-    if (!prismaUser) {
+    if (!user) {
       console.log('[AuthService] User not found:', email);
       throw new Error('Invalid email or password');
     }
 
     console.log('[AuthService] User found, verifying password');
 
-    // Check if password is already hashed
-    let isValidPassword = false;
-    if (!prismaUser.password.startsWith('$2a$') && !prismaUser.password.startsWith('$2b$')) {
-      console.log('[AuthService] Password not hashed, hashing now');
-      // If not hashed, hash it and update the user record
-      const hashedPassword = await bcrypt.hash(prismaUser.password, SALT_ROUNDS);
-      prismaUser = await prisma.user.update({
-        where: { id: prismaUser.id },
-        data: { password: hashedPassword },
-      });
-      // Compare with original password since we just updated it
-      isValidPassword = prismaUser.password === password;
-    } else {
-      console.log('[AuthService] Verifying hashed password');
-      // If already hashed, compare with bcrypt
-      isValidPassword = await bcrypt.compare(password, prismaUser.password);
-    }
-
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       console.log('[AuthService] Invalid password for user:', email);
       throw new Error('Invalid email or password');
@@ -77,8 +64,8 @@ export class AuthService {
     // Generate access token with user data
     const token = jwt.sign(
       { 
-        userId: prismaUser.id, 
-        email: prismaUser.email,
+        userId: user._id.toString(), 
+        email: user.email,
         type: 'access'
       },
       JWT_SECRET,
@@ -88,7 +75,7 @@ export class AuthService {
     // Generate refresh token with minimal data
     const refreshToken = jwt.sign(
       { 
-        userId: prismaUser.id,
+        userId: user._id.toString(),
         type: 'refresh'
       },
       JWT_SECRET,
@@ -98,7 +85,7 @@ export class AuthService {
     console.log('[AuthService] Login successful for user:', email);
 
     return {
-      user: convertUser(prismaUser),
+      user: convertUser(user),
       tokens: {
         token,
         refreshToken
@@ -123,9 +110,11 @@ export class AuthService {
         return null;
       }
 
-      // Find the user
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
+      // Find the user in MongoDB
+      const client = await clientPromise;
+      const db = client.db('solofitness');
+      const user = await db.collection('users').findOne({ 
+        _id: new ObjectId(decoded.userId)
       });
 
       if (!user) {
@@ -158,9 +147,11 @@ export class AuthService {
         throw new Error('Invalid token type');
       }
       
-      // Find the user
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
+      // Find the user in MongoDB
+      const client = await clientPromise;
+      const db = client.db('solofitness');
+      const user = await db.collection('users').findOne({ 
+        _id: new ObjectId(decoded.userId)
       });
 
       if (!user) {
@@ -173,7 +164,7 @@ export class AuthService {
       // Generate new access token
       const newToken = jwt.sign(
         { 
-          userId: user.id, 
+          userId: user._id.toString(), 
           email: user.email,
           type: 'access'
         },
@@ -184,7 +175,7 @@ export class AuthService {
       // Generate new refresh token
       const newRefreshToken = jwt.sign(
         { 
-          userId: user.id,
+          userId: user._id.toString(),
           type: 'refresh'
         },
         JWT_SECRET,

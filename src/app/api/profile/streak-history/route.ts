@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { authenticate } from '@/lib/auth-helper';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 // GET /api/profile/streak-history - Get user's streak history
 export async function GET() {
@@ -14,30 +15,28 @@ export async function GET() {
   }
 
   try {
-    // Get user's streak history
-    const userProfile = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        profile: {
-          include: {
-            streakHistory: {
-              orderBy: {
-                date: 'desc'
-              }
-            }
-          }
-        }
-      }
-    });
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
+    // Get user's profile with streak history
+    const userProfile = await db.collection('profiles').findOne(
+      { userId: new ObjectId(user.id) },
+      { projection: { streakHistory: 1 } }
+    );
 
-    if (!userProfile || !userProfile.profile) {
+    if (!userProfile) {
       return NextResponse.json(
         { message: 'User profile not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(userProfile.profile.streakHistory);
+    // Sort streak history by date in descending order
+    const sortedStreakHistory = (userProfile.streakHistory || []).sort((a: any, b: any) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    return NextResponse.json(sortedStreakHistory);
     
   } catch (error) {
     console.error('Error fetching streak history:', error);

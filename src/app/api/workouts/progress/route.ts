@@ -1,6 +1,36 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { authenticate } from '@/lib/auth-helper';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+
+interface StreakEntry {
+  _id: ObjectId;
+  userId: ObjectId;
+  date: string;
+  completed: boolean;
+  xpEarned: number;
+  exercises: {
+    pushups: number;
+    situps: number;
+    squats: number;
+    milesRan: number;
+  };
+}
+
+interface UserProfile {
+  _id: ObjectId;
+  userId: ObjectId;
+  level: number;
+  streakHistory: StreakEntry[];
+  longestStreak: number;
+  xp: number;
+  exerciseCounts: {
+    pushups: number;
+    situps: number;
+    squats: number;
+    milesRan: number;
+  };
+}
 
 // POST /api/workouts/progress - Update workout progress
 export async function POST(request: Request) {
@@ -15,32 +45,23 @@ export async function POST(request: Request) {
 
   try {
     const { exercises, completeBonusTask } = await request.json();
+    const client = await clientPromise;
+    const db = client.db('solofitness');
 
     // Get user profile to determine level and streak history
-    const userProfile = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        profile: {
-          include: {
-            streakHistory: {
-              orderBy: {
-                date: 'desc'
-              },
-              take: 2 // Get today and yesterday's entries
-            }
-          }
-        }
-      }
-    });
+    const userProfile = await db.collection('profiles').findOne<UserProfile>(
+      { userId: new ObjectId(user.id) },
+      { projection: { level: 1, streakHistory: 1, longestStreak: 1, xp: 1, exerciseCounts: 1 } }
+    );
 
-    if (!userProfile || !userProfile.profile) {
+    if (!userProfile) {
       return NextResponse.json(
         { message: 'User profile not found' },
         { status: 404 }
       );
     }
 
-    const level = userProfile.profile.level || 1;
+    const level = userProfile.level || 1;
     const today = new Date().toISOString().split('T')[0];
 
     // Calculate requirements based on level
@@ -65,34 +86,34 @@ export async function POST(request: Request) {
     }
 
     // Find today's entry if it exists
-    const todayEntry = userProfile.profile.streakHistory.find(entry => entry.date === today);
+    const todayEntry = userProfile.streakHistory?.find(entry => entry.date === today);
 
     // Update or create today's streak history entry
     let updatedEntry;
     if (todayEntry) {
-      updatedEntry = await prisma.streakHistory.update({
-        where: { id: todayEntry.id },
-        data: {
-          completed: isCompleted,
-          xpEarned,
-          exercises
+      updatedEntry = await db.collection('streakHistory').updateOne(
+        { _id: todayEntry._id },
+        {
+          $set: {
+            completed: isCompleted,
+            xpEarned,
+            exercises
+          }
         }
-      });
+      );
     } else {
-      updatedEntry = await prisma.streakHistory.create({
-        data: {
-          profileId: userProfile.profile.id,
-          date: today,
-          completed: isCompleted,
-          xpEarned,
-          exercises
-        }
+      updatedEntry = await db.collection('streakHistory').insertOne({
+        userId: new ObjectId(user.id),
+        date: today,
+        completed: isCompleted,
+        xpEarned,
+        exercises
       });
     }
 
     // Calculate current streak
     let currentStreak = 0;
-    const streakHistory = userProfile.profile.streakHistory;
+    const streakHistory = userProfile.streakHistory || [];
     
     for (const entry of streakHistory) {
       if (entry.completed) {
@@ -102,27 +123,52 @@ export async function POST(request: Request) {
       }
     }
 
-    // Update user profile if workout is completed
-    if (isCompleted) {
-      await prisma.profile.update({
-        where: { id: userProfile.profile.id },
-        data: {
-          level: level + 1,
-          xp: userProfile.profile.xp + xpEarned,
-          currentStreak: currentStreak,
-          longestStreak: Math.max(currentStreak, userProfile.profile.longestStreak || 0)
-        }
-      });
+    // Update longest streak if current streak is longer
+    let longestStreak = userProfile.longestStreak || 0;
+    if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
     }
+
+    // Update user profile
+    const totalXp = userProfile.xp + xpEarned;
+    const newLevel = Math.floor(totalXp / 100) + 1;
+
+    // Update exercise counts
+    const oldExerciseCounts = userProfile.exerciseCounts || {
+      pushups: 0,
+      situps: 0,
+      squats: 0,
+      milesRan: 0
+    };
+
+    const newExerciseCounts = {
+      pushups: oldExerciseCounts.pushups + exercises.pushups,
+      situps: oldExerciseCounts.situps + exercises.situps,
+      squats: oldExerciseCounts.squats + exercises.squats,
+      milesRan: oldExerciseCounts.milesRan + exercises.milesRan
+    };
+
+    // Update profile
+    await db.collection('profiles').updateOne(
+      { _id: userProfile._id },
+      {
+        $set: {
+          xp: totalXp,
+          level: newLevel,
+          currentStreak: isCompleted ? currentStreak : 0,
+          longestStreak,
+          exerciseCounts: newExerciseCounts
+        }
+      }
+    );
 
     return NextResponse.json({
       completed: isCompleted,
       xpEarned,
-      currentStreak,
-      longestStreak: Math.max(currentStreak, userProfile.profile.longestStreak || 0),
-      level: isCompleted ? level + 1 : level
+      currentStreak: isCompleted ? currentStreak : 0,
+      longestStreak,
+      level: newLevel
     });
-    
   } catch (error) {
     console.error('Error updating workout progress:', error);
     return NextResponse.json(

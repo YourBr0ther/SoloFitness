@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { prisma } from './prisma';
 import { AUTH_CONFIG } from '@/config/auth';
+import clientPromise from './mongodb';
+import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -33,10 +34,12 @@ export async function authenticate(): Promise<AuthUser | null> {
     }
 
     console.log('[Auth Helper] Token verified, finding user:', decoded.userId);
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, email: true },
-    });
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    const user = await db.collection('users').findOne(
+      { _id: new ObjectId(decoded.userId) },
+      { projection: { _id: 1, email: 1 } }
+    );
 
     if (!user) {
       console.log('[Auth Helper] User not found for token');
@@ -44,7 +47,10 @@ export async function authenticate(): Promise<AuthUser | null> {
     }
 
     console.log('[Auth Helper] User authenticated:', user.email);
-    return user;
+    return {
+      id: user._id.toString(),
+      email: user.email
+    };
   } catch (error) {
     console.error('[Auth Helper] Authentication error:', error);
     return null;

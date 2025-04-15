@@ -1,6 +1,28 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { authenticate } from '@/lib/auth-helper';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+
+interface StreakEntry {
+  _id: ObjectId;
+  userId: ObjectId;
+  date: string;
+  completed: boolean;
+  xpEarned: number;
+  exercises: {
+    pushups: number;
+    situps: number;
+    squats: number;
+    milesRan: number;
+  };
+}
+
+interface UserProfile {
+  _id: ObjectId;
+  userId: ObjectId;
+  level: number;
+  streakHistory: StreakEntry[];
+}
 
 // GET /api/workouts/today - Get today's workout
 export async function GET() {
@@ -14,37 +36,29 @@ export async function GET() {
   }
 
   try {
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
     // Get user profile to determine level and streak history
-    const userProfile = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        profile: {
-          include: {
-            streakHistory: {
-              orderBy: {
-                date: 'desc'
-              },
-              take: 2 // Get today and yesterday's entries if they exist
-            }
-          }
-        }
-      }
-    });
+    const userProfile = await db.collection('profiles').findOne<UserProfile>(
+      { userId: new ObjectId(user.id) },
+      { projection: { level: 1, streakHistory: 1 } }
+    );
 
-    if (!userProfile || !userProfile.profile) {
+    if (!userProfile) {
       return NextResponse.json(
         { message: 'User profile not found' },
         { status: 404 }
       );
     }
 
-    const level = userProfile.profile.level || 1;
+    const level = userProfile.level || 1;
     
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
     
     // Check if today's workout already exists
-    const todayEntry = userProfile.profile.streakHistory.find(entry => entry.date === today);
+    const todayEntry = userProfile.streakHistory?.find(entry => entry.date === today);
     
     // Calculate exercise requirements based on level
     const requirements = {
@@ -56,18 +70,16 @@ export async function GET() {
 
     // If today's entry doesn't exist, create it
     if (!todayEntry) {
-      await prisma.streakHistory.create({
-        data: {
-          profileId: userProfile.profile.id,
-          date: today,
-          completed: false,
-          xpEarned: 0,
-          exercises: {
-            pushups: 0,
-            situps: 0,
-            squats: 0,
-            milesRan: 0
-          }
+      await db.collection('streakHistory').insertOne({
+        userId: new ObjectId(user.id),
+        date: today,
+        completed: false,
+        xpEarned: 0,
+        exercises: {
+          pushups: 0,
+          situps: 0,
+          squats: 0,
+          milesRan: 0
         }
       });
     }

@@ -1,18 +1,35 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/lib/prisma';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+interface Exercise {
+  _id: ObjectId;
+  name: string;
+  description?: string;
+  muscleGroup?: string;
+  equipment?: string;
+  difficulty?: string;
+  videoUrl?: string;
+  imageUrl?: string;
+  userId: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // GET /api/exercises - Get all exercises
 export async function GET() {
   try {
-    const exercises = await prisma.exercise.findMany({
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
+    const exercises = await db.collection('exercises')
+      .find<Exercise>({})
+      .sort({ name: 1 })
+      .toArray();
     
     return NextResponse.json(exercises);
   } catch (error) {
@@ -25,8 +42,8 @@ export async function GET() {
 }
 
 // Utility function for auth within this file
-function getAuthToken() {
-  const headersList = headers();
+async function getAuthToken() {
+  const headersList = await headers();
   const authorization = headersList.get('Authorization');
   
   if (!authorization?.startsWith('Bearer ')) {
@@ -45,7 +62,7 @@ function getAuthToken() {
 // POST /api/exercises - Create a new exercise
 export async function POST(request: Request) {
   // Get auth token
-  const decoded = getAuthToken();
+  const decoded = await getAuthToken();
   
   if (!decoded) {
     return NextResponse.json(
@@ -65,20 +82,36 @@ export async function POST(request: Request) {
       );
     }
     
-    const exercise = await prisma.exercise.create({
-      data: {
-        name,
-        description,
-        muscleGroup,
-        equipment,
-        difficulty,
-        videoUrl,
-        imageUrl,
-        userId
-      }
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
+    const now = new Date();
+    const exercise = await db.collection('exercises').insertOne({
+      name,
+      description,
+      muscleGroup,
+      equipment,
+      difficulty,
+      videoUrl,
+      imageUrl,
+      userId: new ObjectId(userId),
+      createdAt: now,
+      updatedAt: now
     });
     
-    return NextResponse.json(exercise, { status: 201 });
+    return NextResponse.json({ 
+      _id: exercise.insertedId,
+      name,
+      description,
+      muscleGroup,
+      equipment,
+      difficulty,
+      videoUrl,
+      imageUrl,
+      userId,
+      createdAt: now,
+      updatedAt: now
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating exercise:', error);
     return NextResponse.json(

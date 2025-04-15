@@ -3,9 +3,11 @@ import { User } from '@/types/user';
 import { ApiResponse } from '@/types/api';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { prisma } from '../prisma';
+import clientPromise from '../mongodb';
+import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret-key';
 
 export interface AuthTokens {
   token: string;
@@ -19,11 +21,14 @@ export interface AuthResponse {
 
 export class Auth {
   private static instance: Auth;
-  private platform: Platform = PLATFORMS.WEB;
+  platform: string;
 
-  private constructor() {}
+  private constructor(platform: string = 'web') {
+    this.platform = platform;
+    console.log('[Auth] Initializing Auth instance');
+  }
 
-  public static getInstance(): Auth {
+  static getInstance(): Auth {
     if (!Auth.instance) {
       Auth.instance = new Auth();
     }
@@ -34,141 +39,101 @@ export class Auth {
     this.platform = platform;
   }
 
-  async login(email: string, password: string): Promise<AuthResponse> {
-    if (!email || !password) {
-      throw new Error('Email and password are required');
-    }
+  async login(email: string, password: string): Promise<{ user: User; token: string; refreshToken: string } | null> {
+    const client = await clientPromise;
+    const db = client.db();
+    
+    const user = await db.collection('users').findOne({ email });
+    if (!user) return null;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        username: true,
-        profile: {
-          select: {
-            level: true,
-            xp: true,
-            avatarUrl: true
-          }
-        }
-      },
-    });
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) return null;
 
-    if (!user) {
-      throw new Error('Invalid credentials');
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      throw new Error('Invalid credentials');
-    }
-
-    // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email);
-
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user;
-
-    return {
-      user: userWithoutPassword as User,
-      tokens
+    const userResponse: User = {
+      id: user._id.toString(),
+      email: user.email,
+      username: user.username,
+      profile: user.profile,
+      settings: user.settings,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
+
+    const token = this.generateToken(userResponse);
+    const refreshToken = this.generateRefreshToken(userResponse);
+
+    return { user: userResponse, token, refreshToken };
   }
 
-  async register(email: string, password: string, username: string): Promise<AuthResponse> {
-    if (!email || !password || !username) {
-      throw new Error('Email, password, and username are required');
-    }
+  async register(email: string, password: string, username: string): Promise<{ user: User; token: string; refreshToken: string } | null> {
+    const client = await clientPromise;
+    const db = client.db();
 
-    // Check if user exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email },
-          { username }
-        ]
-      }
-    });
+    const existingUser = await db.collection('users').findOne({ email });
+    if (existingUser) return null;
 
-    if (existingUser) {
-      throw new Error('User with this email or username already exists');
-    }
-
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    const now = new Date();
 
-    // Create user with profile and default settings
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        username,
-        profile: {
-          create: {
-            level: 1,
-            xp: 0,
-            currentStreak: 0
-          }
-        },
-        settings: {
-          create: {
-            enableNotifications: true,
-            darkMode: false,
-            language: 'en',
-            enablePenalties: true,
-            enableBonuses: true,
-            reminderTimes: ["09:00", "18:00"]
-          }
-        }
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        profile: {
-          select: {
-            level: true,
-            xp: true,
-            avatarUrl: true
-          }
-        }
-      }
+    const defaultProfile = {
+      level: 1,
+      xp: 0,
+      currentStreak: 0
+    };
+
+    const defaultSettings = {
+      enableNotifications: true,
+      darkMode: false,
+      language: 'en',
+      enablePenalties: true,
+      enableBonuses: true,
+      reminderTimes: []
+    };
+
+    const result = await db.collection('users').insertOne({
+      email,
+      password: hashedPassword,
+      username,
+      profile: defaultProfile,
+      settings: defaultSettings,
+      createdAt: now,
+      updatedAt: now
     });
 
-    // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email);
-
-    return {
-      user: user as User,
-      tokens
+    const userResponse: User = {
+      id: result.insertedId.toString(),
+      email,
+      username,
+      profile: defaultProfile,
+      settings: defaultSettings,
+      createdAt: now,
+      updatedAt: now
     };
+
+    const token = this.generateToken(userResponse);
+    const refreshToken = this.generateRefreshToken(userResponse);
+
+    return { user: userResponse, token, refreshToken };
   }
 
   async validateToken(token: string): Promise<User | null> {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+      const client = await clientPromise;
+      const db = client.db();
       
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          profile: {
-            select: {
-              level: true,
-              xp: true,
-              avatarUrl: true
-            }
-          }
-        }
-      });
+      const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.id) });
+      if (!user) return null;
 
-      return user as User;
+      return {
+        id: user._id.toString(),
+        email: user.email,
+        username: user.username,
+        profile: user.profile,
+        settings: user.settings,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
     } catch (error) {
       return null;
     }
@@ -182,19 +147,42 @@ export class Auth {
         throw new Error('Invalid refresh token');
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: { id: true, email: true }
-      });
+      const client = await clientPromise;
+      const db = client.db('solofitness');
+      const user = await db.collection('users').findOne(
+        { _id: new ObjectId(decoded.userId) },
+        { 
+          projection: {
+            _id: 1,
+            email: 1
+          }
+        }
+      );
 
       if (!user) {
         throw new Error('User not found');
       }
 
-      return this.generateTokens(user.id, user.email);
+      return this.generateTokens(user._id.toString(), user.email);
     } catch (error) {
       throw new Error('Invalid refresh token');
     }
+  }
+
+  private generateToken(user: User): string {
+    return jwt.sign(
+      { id: user.id, platform: this.platform },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+  }
+
+  private generateRefreshToken(user: User): string {
+    return jwt.sign(
+      { id: user.id, platform: this.platform },
+      REFRESH_TOKEN_SECRET,
+      { expiresIn: '7d' }
+    );
   }
 
   private generateTokens(userId: string, email: string): AuthTokens {
@@ -202,6 +190,7 @@ export class Auth {
       { 
         userId, 
         email,
+        type: 'access',
         platform: this.platform 
       },
       JWT_SECRET,
@@ -215,7 +204,7 @@ export class Auth {
       tokens.refreshToken = jwt.sign(
         { 
           userId,
-          tokenType: 'refresh',
+          type: 'refresh',
           platform: this.platform
         },
         JWT_SECRET,

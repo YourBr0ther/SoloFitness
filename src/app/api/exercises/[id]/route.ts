@@ -1,13 +1,28 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/lib/prisma';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+interface Exercise {
+  _id: ObjectId;
+  name: string;
+  description?: string;
+  muscleGroup?: string;
+  equipment?: string;
+  difficulty?: string;
+  videoUrl?: string;
+  imageUrl?: string;
+  userId: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Utility function for auth within this file
-function getAuthToken() {
-  const headersList = headers();
+async function getAuthToken() {
+  const headersList = await headers();
   const authorization = headersList.get('Authorization');
   
   if (!authorization?.startsWith('Bearer ')) {
@@ -30,9 +45,11 @@ export async function GET(
 ) {
   try {
     const id = params.id;
+    const client = await clientPromise;
+    const db = client.db('solofitness');
     
-    const exercise = await prisma.exercise.findUnique({
-      where: { id }
+    const exercise = await db.collection('exercises').findOne<Exercise>({
+      _id: new ObjectId(id)
     });
     
     if (!exercise) {
@@ -58,7 +75,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   // Get auth token
-  const decoded = getAuthToken();
+  const decoded = await getAuthToken();
   
   if (!decoded) {
     return NextResponse.json(
@@ -72,9 +89,12 @@ export async function PUT(
     const id = params.id;
     const { name, description, muscleGroup, equipment, difficulty, videoUrl, imageUrl } = await request.json();
     
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
     // Check if exercise exists
-    const existingExercise = await prisma.exercise.findUnique({
-      where: { id }
+    const existingExercise = await db.collection('exercises').findOne<Exercise>({
+      _id: new ObjectId(id)
     });
     
     if (!existingExercise) {
@@ -85,7 +105,7 @@ export async function PUT(
     }
     
     // Check if user owns this exercise
-    if (existingExercise.userId !== userId) {
+    if (existingExercise.userId.toString() !== userId) {
       return NextResponse.json(
         { message: 'Not authorized to update this exercise' },
         { status: 403 }
@@ -93,17 +113,25 @@ export async function PUT(
     }
     
     // Update exercise
-    const updatedExercise = await prisma.exercise.update({
-      where: { id },
-      data: {
-        name,
-        description,
-        muscleGroup,
-        equipment,
-        difficulty,
-        videoUrl,
-        imageUrl
+    const now = new Date();
+    await db.collection('exercises').updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          name,
+          description,
+          muscleGroup,
+          equipment,
+          difficulty,
+          videoUrl,
+          imageUrl,
+          updatedAt: now
+        }
       }
+    );
+    
+    const updatedExercise = await db.collection('exercises').findOne<Exercise>({
+      _id: new ObjectId(id)
     });
     
     return NextResponse.json(updatedExercise);
@@ -122,7 +150,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   // Get auth token
-  const decoded = getAuthToken();
+  const decoded = await getAuthToken();
   
   if (!decoded) {
     return NextResponse.json(
@@ -135,9 +163,12 @@ export async function DELETE(
     const userId = decoded.userId;
     const id = params.id;
     
+    const client = await clientPromise;
+    const db = client.db('solofitness');
+    
     // Check if exercise exists
-    const existingExercise = await prisma.exercise.findUnique({
-      where: { id }
+    const existingExercise = await db.collection('exercises').findOne<Exercise>({
+      _id: new ObjectId(id)
     });
     
     if (!existingExercise) {
@@ -148,7 +179,7 @@ export async function DELETE(
     }
     
     // Check if user owns this exercise
-    if (existingExercise.userId !== userId) {
+    if (existingExercise.userId.toString() !== userId) {
       return NextResponse.json(
         { message: 'Not authorized to delete this exercise' },
         { status: 403 }
@@ -156,13 +187,11 @@ export async function DELETE(
     }
     
     // Delete exercise
-    await prisma.exercise.delete({
-      where: { id }
+    await db.collection('exercises').deleteOne({
+      _id: new ObjectId(id)
     });
     
-    return NextResponse.json(
-      { message: 'Exercise deleted successfully' }
-    );
+    return NextResponse.json({ message: 'Exercise deleted successfully' });
   } catch (error) {
     console.error('Error deleting exercise:', error);
     return NextResponse.json(
