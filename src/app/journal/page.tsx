@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import HeaderSection from "@/components/journal/HeaderSection";
 import LevelProgress from "@/components/journal/LevelProgress";
 import ExerciseCard from "@/components/journal/ExerciseCard";
-import PenaltyTask from "@/components/journal/PenaltyTask";
-import BonusTask from "@/components/journal/BonusTask";
+import PenaltyTaskComponent from "@/components/journal/PenaltyTask";
+import BonusTaskComponent from "@/components/journal/BonusTask";
 import StreakPopup from "@/components/journal/StreakPopup";
-import { DailyExercise, PenaltyTask as PenaltyTaskType, BonusTask as BonusTaskType } from "@/types/journal";
+import { DailyExercise, PenaltyTask, BonusTask } from "@/types/journal";
 import { useApi } from '@/contexts/ApiContext';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -35,8 +35,8 @@ export default function JournalPage() {
   const [isPulsing, setIsPulsing] = useState(false);
   const [exercises, setExercises] = useState<DailyExercise[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [penaltyTask, setPenaltyTask] = useState<PenaltyTaskType | null>(null);
-  const [bonusTask, setBonusTask] = useState<BonusTaskType | null>(null);
+  const [penaltyTask, setPenaltyTask] = useState<PenaltyTask | null>(null);
+  const [bonusTask, setBonusTask] = useState<BonusTask | null>(null);
   const [penaltyProgress, setPenaltyProgress] = useState(0);
   const [showPenaltyComplete, setShowPenaltyComplete] = useState(false);
   const [isPenaltyTransitioning, setIsPenaltyTransitioning] = useState(false);
@@ -400,7 +400,7 @@ export default function JournalPage() {
       </div>
 
       {penaltyTask && !showPenaltyComplete && (
-        <PenaltyTask
+        <PenaltyTaskComponent
           task={penaltyTask}
           progress={penaltyProgress}
           onIncrement={handleIncrementPenalty}
@@ -410,7 +410,7 @@ export default function JournalPage() {
       )}
 
       {bonusTask && !completedBonusTask && (
-        <BonusTask
+        <BonusTaskComponent
           task={bonusTask}
           onComplete={handleCompleteBonus}
         />

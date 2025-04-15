@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Profile, StreakDay, NotificationTime, GymBadge } from "@/types/profile";
+import type { Profile, StreakDay, NotificationTime, GymBadge } from "@/types/profile";
 import { User, Bell, Flame, Trophy, Pencil, X, Check, Calendar, LogOut, Award, Plus, Trash2, Key } from "lucide-react";
 import Image from "next/image";
 import StreakCalendar from "@/components/profile/StreakCalendar";
@@ -59,11 +59,11 @@ export default function ProfilePage() {
       try {
         setIsLoadingProfile(true);
         const response = await apiService.getProfile();
-        // Ensure badges is always an array
+        // The API returns a nested profile object, so we need to merge it with our default profile
         const profileData = {
           ...defaultProfile,
-          ...response.data.profile, // Access the nested profile data
-          badges: response.data.profile?.badges || []
+          ...response.data, // The API response is already the profile object
+          badges: response.data.badges || []
         };
         setProfile(profileData);
         setIsLoadingProfile(false);

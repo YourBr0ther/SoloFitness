@@ -1,16 +1,12 @@
 import { Flame, Trophy, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import type { Profile } from "@/types/profile";
 
 interface HeaderSectionProps {
   streakCount: number;
   dailyXP: number;
-  profile: {
-    username: string;
-    profile?: {
-      avatarUrl: string;
-    };
-  } | null;
+  profile: Profile | null;
 }
 
 const HeaderSection = ({ streakCount, dailyXP, profile }: HeaderSectionProps) => {
@@ -28,9 +24,9 @@ const HeaderSection = ({ streakCount, dailyXP, profile }: HeaderSectionProps) =>
       {/* Player Icon */}
       <Link href="/profile" className="relative group">
         <div className="w-20 h-20 rounded-full bg-gray-900 border-2 border-[#00A8FF] flex items-center justify-center transition-transform duration-200 group-hover:scale-105 group-hover:border-opacity-80 overflow-hidden">
-          {profile?.profile?.avatarUrl ? (
+          {profile?.avatarUrl ? (
             <Image
-              src={profile.profile.avatarUrl}
+              src={profile.avatarUrl}
               alt={profile.username || 'Profile'}
               width={80}
               height={80}

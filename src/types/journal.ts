@@ -1,11 +1,6 @@
-export interface ExerciseProgress {
-  id: string;
-  name: string;
-  count: number;
-  dailyGoal: number;
-  increment?: number;
-  unit?: string;
-}
+import { Exercise, Task } from './shared';
+
+export interface DailyExercise extends Exercise {}
 
 export interface PenaltyTask {
   id: string;
@@ -14,17 +9,4 @@ export interface PenaltyTask {
   unit: string;
 }
 
-export interface BonusTask {
-  id: string;
-  description: string;
-  completed: boolean;
-}
-
-export interface DailyExercise {
-  id: string;
-  name: string;
-  count: number;
-  dailyGoal: number;
-  increment: number;
-  unit: string;
-} 
+export interface BonusTask extends Task {} 

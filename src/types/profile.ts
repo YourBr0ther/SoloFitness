@@ -1,3 +1,5 @@
+import { ExerciseProgress, Preferences } from './shared';
+
 export interface Profile {
   id: string;
   username: string;
@@ -7,10 +9,7 @@ export interface Profile {
   currentStreak: number;
   streakHistory: StreakDay[];
   notifications: NotificationTime[];
-  preferences: {
-    enablePenalties: boolean;
-    enableBonuses: boolean;
-  };
+  preferences: Preferences;
   badges: GymBadge[];
   apiKey: string;
   reminderTimes?: string[];
@@ -23,12 +22,7 @@ export interface StreakDay {
   date: string;
   completed: boolean;
   xpEarned: number;
-  exercises: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
-  };
+  exercises: ExerciseProgress;
 }
 
 export interface NotificationTime {

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { authenticate } from '@/lib/auth-helper';
 import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { ObjectId, Document } from 'mongodb';
 
 interface StreakEntry {
-  _id: ObjectId;
+  _id?: ObjectId;
   userId: ObjectId;
   date: string;
   completed: boolean;
@@ -17,11 +17,14 @@ interface StreakEntry {
   };
 }
 
-interface UserProfile {
+interface UserProfile extends Document {
   _id: ObjectId;
-  userId: ObjectId;
-  level: number;
-  streakHistory: StreakEntry[];
+  email: string;
+  username: string;
+  profile: {
+    level: number;
+    streakHistory: StreakEntry[];
+  };
 }
 
 // GET /api/workouts/today - Get today's workout
@@ -40,9 +43,9 @@ export async function GET() {
     const db = client.db('solofitness');
     
     // Get user profile to determine level and streak history
-    const userProfile = await db.collection('profiles').findOne<UserProfile>(
-      { userId: new ObjectId(user.id) },
-      { projection: { level: 1, streakHistory: 1 } }
+    const userProfile = await db.collection('users').findOne<UserProfile>(
+      { _id: new ObjectId(user.id) },
+      { projection: { 'profile.level': 1, 'profile.streakHistory': 1 } }
     );
 
     if (!userProfile) {
@@ -52,13 +55,13 @@ export async function GET() {
       );
     }
 
-    const level = userProfile.level || 1;
+    const level = userProfile.profile?.level || 1;
     
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
     
     // Check if today's workout already exists
-    const todayEntry = userProfile.streakHistory?.find(entry => entry.date === today);
+    const todayEntry = userProfile.profile?.streakHistory?.find(entry => entry.date === today);
     
     // Calculate exercise requirements based on level
     const requirements = {
@@ -70,7 +73,7 @@ export async function GET() {
 
     // If today's entry doesn't exist, create it
     if (!todayEntry) {
-      await db.collection('streakHistory').insertOne({
+      const newEntry: StreakEntry = {
         userId: new ObjectId(user.id),
         date: today,
         completed: false,
@@ -81,7 +84,13 @@ export async function GET() {
           squats: 0,
           milesRan: 0
         }
-      });
+      };
+
+      // Add the new entry to the streak history array
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(user.id) },
+        { $push: { "profile.streakHistory": newEntry } } as any
+      );
     }
 
     // Return today's workout data
@@ -95,7 +104,15 @@ export async function GET() {
         situps: 0,
         squats: 0,
         milesRan: 0
-      }
+      },
+      hasPenalty: false, // We'll implement penalties later
+      penalties: {
+        pushups: 0,
+        situps: 0,
+        squats: 0,
+        milesRan: 0
+      },
+      bonusTask: null // We'll implement bonus tasks later
     });
     
   } catch (error) {
