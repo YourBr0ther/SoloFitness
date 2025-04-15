@@ -62,8 +62,8 @@ export default function ProfilePage() {
         // Ensure badges is always an array
         const profileData = {
           ...defaultProfile,
-          ...response.data,
-          badges: response.data.badges || []
+          ...response.data.profile, // Access the nested profile data
+          badges: response.data.profile?.badges || []
         };
         setProfile(profileData);
         setIsLoadingProfile(false);
@@ -385,32 +385,20 @@ export default function ProfilePage() {
               <div className="relative group">
                 <div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-[#00A8FF] overflow-hidden">
                   {profile.avatarUrl ? (
-                    profile.avatarUrl.endsWith('.svg') ? (
-                      <img
-                        src={profile.avatarUrl}
-                        alt="Profile"
-                        className="w-full h-full"
-                      />
-                    ) : (
-                      <Image
-                        src={profile.avatarUrl}
-                        alt="Profile"
-                        width={96}
-                        height={96}
-                        className="w-full h-full object-cover"
-                      />
-                    )
-                  ) : (
-                    <img
-                      src="/default-avatar.svg"
-                      alt="Default Profile"
-                      className="w-full h-full"
+                    <Image
+                      src={profile.avatarUrl}
+                      alt={profile.username || 'Profile'}
+                      width={96}
+                      height={96}
+                      className="object-cover"
                     />
+                  ) : (
+                    <User className="w-12 h-12 text-[#00A8FF] m-auto" />
                   )}
                 </div>
                 <label
                   htmlFor="avatar-upload"
-                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full"
                 >
                   <span className="text-white text-sm">Change</span>
                 </label>

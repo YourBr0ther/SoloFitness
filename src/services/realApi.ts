@@ -239,7 +239,13 @@ export class ApiService extends BaseApiService {
   async getProfile(): Promise<ApiResponse<Profile>> {
     return this.cacheStrategy.withCache(
       '/profile',
-      () => this.get<Profile>('/profile'),
+      async () => {
+        const response = await this.get<{ profile: Profile }>('/profile');
+        return {
+          ...response,
+          data: response.data.profile
+        };
+      },
       undefined,
       5 * 60 * 1000 // 5 minutes TTL
     );

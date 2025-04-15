@@ -19,7 +19,7 @@ export interface PenaltyTaskResponse extends ApiResponse<PenaltyTask> {}
 export interface BonusTaskResponse extends ApiResponse<BonusTask> {}
 
 // Profile API Types
-export interface ProfileResponse extends ApiResponse<Profile> {}
+export interface ProfileResponse extends ApiResponse<{ profile: Profile }> {}
 export interface StreakResponse extends ApiResponse<StreakDay[]> {}
 export interface BadgesResponse extends ApiResponse<GymBadge[]> {}
 
