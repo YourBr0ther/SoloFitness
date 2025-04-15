@@ -1,32 +1,33 @@
 export interface UserSettings {
-  id: string;
-  userId: string;
-  theme: 'light' | 'dark' | 'system';
+  enableNotifications: boolean;
+  darkMode: boolean;
   language: string;
-  timezone: string;
-  units: {
+  enablePenalties: boolean;
+  enableBonuses: boolean;
+  reminderTimes: string[];
+  theme?: 'light' | 'dark' | 'system';
+  timezone?: string;
+  units?: {
     weight: 'kg' | 'lbs';
     distance: 'km' | 'miles';
     height: 'cm' | 'feet';
   };
-  privacy: {
+  privacy?: {
     profile: 'public' | 'friends' | 'private';
     activity: 'public' | 'friends' | 'private';
     achievements: 'public' | 'friends' | 'private';
   };
-  notifications: {
+  notifications?: {
     email: boolean;
     push: boolean;
     inApp: boolean;
   };
-  preferences: {
+  preferences?: {
     showTutorial: boolean;
     showTips: boolean;
     showProgress: boolean;
     showLeaderboard: boolean;
   };
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface AppSettings {
@@ -39,29 +40,4 @@ export interface AppSettings {
   updatedAt: Date;
 }
 
-export interface SettingsUpdate {
-  theme?: 'light' | 'dark' | 'system';
-  language?: string;
-  timezone?: string;
-  units?: {
-    weight?: 'kg' | 'lbs';
-    distance?: 'km' | 'miles';
-    height?: 'cm' | 'feet';
-  };
-  privacy?: {
-    profile?: 'public' | 'friends' | 'private';
-    activity?: 'public' | 'friends' | 'private';
-    achievements?: 'public' | 'friends' | 'private';
-  };
-  notifications?: {
-    email?: boolean;
-    push?: boolean;
-    inApp?: boolean;
-  };
-  preferences?: {
-    showTutorial?: boolean;
-    showTips?: boolean;
-    showProgress?: boolean;
-    showLeaderboard?: boolean;
-  };
-} 
+export interface SettingsUpdate extends Partial<UserSettings> {} 

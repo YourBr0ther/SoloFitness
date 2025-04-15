@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { authenticate } from '@/lib/auth-helper';
 import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { ObjectId, Document } from 'mongodb';
 
-interface StreakEntry {
-  _id: ObjectId;
+interface StreakEntry extends Document {
+  _id?: ObjectId;
   userId: ObjectId;
   date: string;
   completed: boolean;
@@ -17,18 +17,16 @@ interface StreakEntry {
   };
 }
 
-interface UserProfile {
+interface UserProfile extends Document {
   _id: ObjectId;
-  userId: ObjectId;
-  level: number;
-  streakHistory: StreakEntry[];
-  longestStreak: number;
-  xp: number;
-  exerciseCounts: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
+  email: string;
+  username: string;
+  profile: {
+    level: number;
+    streakHistory: StreakEntry[];
+    xp: number;
+    currentStreak: number;
+    longestStreak: number;
   };
 }
 
@@ -47,11 +45,11 @@ export async function POST(request: Request) {
     const { exercises, completeBonusTask } = await request.json();
     const client = await clientPromise;
     const db = client.db('solofitness');
-
+    
     // Get user profile to determine level and streak history
-    const userProfile = await db.collection('profiles').findOne<UserProfile>(
-      { userId: new ObjectId(user.id) },
-      { projection: { level: 1, streakHistory: 1, longestStreak: 1, xp: 1, exerciseCounts: 1 } }
+    const userProfile = await db.collection('users').findOne<UserProfile>(
+      { _id: new ObjectId(user.id) },
+      { projection: { 'profile.level': 1, 'profile.streakHistory': 1, 'profile.xp': 1, 'profile.currentStreak': 1, 'profile.longestStreak': 1 } }
     );
 
     if (!userProfile) {
@@ -61,7 +59,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const level = userProfile.level || 1;
+    const level = userProfile.profile?.level || 1;
     const today = new Date().toISOString().split('T')[0];
 
     // Calculate requirements based on level
@@ -86,78 +84,68 @@ export async function POST(request: Request) {
     }
 
     // Find today's entry if it exists
-    const todayEntry = userProfile.streakHistory?.find(entry => entry.date === today);
+    const todayEntry = userProfile.profile?.streakHistory?.find(entry => entry.date === today);
 
     // Update or create today's streak history entry
-    let updatedEntry;
+    const newEntry: Omit<StreakEntry, keyof Document> = {
+      userId: new ObjectId(user.id),
+      date: today,
+      completed: isCompleted,
+      xpEarned,
+      exercises
+    };
+
     if (todayEntry) {
-      updatedEntry = await db.collection('streakHistory').updateOne(
-        { _id: todayEntry._id },
+      // Update existing entry
+      await db.collection('users').updateOne(
+        { 
+          _id: new ObjectId(user.id),
+          'profile.streakHistory.date': today
+        },
         {
           $set: {
-            completed: isCompleted,
-            xpEarned,
-            exercises
+            'profile.streakHistory.$': newEntry
           }
         }
       );
     } else {
-      updatedEntry = await db.collection('streakHistory').insertOne({
-        userId: new ObjectId(user.id),
-        date: today,
-        completed: isCompleted,
-        xpEarned,
-        exercises
-      });
+      // Add new entry
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(user.id) },
+        {
+          $push: {
+            'profile.streakHistory': newEntry
+          }
+        }
+      );
     }
 
     // Calculate current streak
-    let currentStreak = 0;
-    const streakHistory = userProfile.streakHistory || [];
-    
-    for (const entry of streakHistory) {
-      if (entry.completed) {
-        currentStreak++;
-      } else {
-        break;
-      }
+    let currentStreak = userProfile.profile?.currentStreak || 0;
+    if (isCompleted) {
+      currentStreak++;
+    } else {
+      currentStreak = 0;
     }
 
     // Update longest streak if current streak is longer
-    let longestStreak = userProfile.longestStreak || 0;
+    let longestStreak = userProfile.profile?.longestStreak || 0;
     if (currentStreak > longestStreak) {
       longestStreak = currentStreak;
     }
 
-    // Update user profile
-    const totalXp = userProfile.xp + xpEarned;
+    // Update user profile with new XP, streak, etc.
+    const totalXp = (userProfile.profile?.xp || 0) + xpEarned;
     const newLevel = Math.floor(totalXp / 100) + 1;
 
-    // Update exercise counts
-    const oldExerciseCounts = userProfile.exerciseCounts || {
-      pushups: 0,
-      situps: 0,
-      squats: 0,
-      milesRan: 0
-    };
-
-    const newExerciseCounts = {
-      pushups: oldExerciseCounts.pushups + exercises.pushups,
-      situps: oldExerciseCounts.situps + exercises.situps,
-      squats: oldExerciseCounts.squats + exercises.squats,
-      milesRan: oldExerciseCounts.milesRan + exercises.milesRan
-    };
-
-    // Update profile
-    await db.collection('profiles').updateOne(
-      { _id: userProfile._id },
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(user.id) },
       {
         $set: {
-          xp: totalXp,
-          level: newLevel,
-          currentStreak: isCompleted ? currentStreak : 0,
-          longestStreak,
-          exerciseCounts: newExerciseCounts
+          'profile.xp': totalXp,
+          'profile.level': newLevel,
+          'profile.currentStreak': currentStreak,
+          'profile.longestStreak': longestStreak
         }
       }
     );
@@ -165,10 +153,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       completed: isCompleted,
       xpEarned,
-      currentStreak: isCompleted ? currentStreak : 0,
+      currentStreak,
       longestStreak,
       level: newLevel
     });
+    
   } catch (error) {
     console.error('Error updating workout progress:', error);
     return NextResponse.json(

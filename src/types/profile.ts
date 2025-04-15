@@ -2,11 +2,21 @@ import { ExerciseProgress, Preferences } from './shared';
 
 export interface Profile {
   id: string;
+  email: string;
   username: string;
   avatarUrl: string;
+  profile?: {
+    level: number;
+    xp: number;
+    currentStreak: number;
+    longestStreak: number;
+    streakHistory: StreakDay[];
+    badges: GymBadge[];
+  };
   level: number;
   xp: number;
   currentStreak: number;
+  longestStreak: number;
   streakHistory: StreakDay[];
   notifications: NotificationTime[];
   preferences: Preferences;
@@ -16,6 +26,16 @@ export interface Profile {
   enableNotifications?: boolean;
   enablePenalties?: boolean;
   enableBonuses?: boolean;
+  settings?: {
+    enableNotifications: boolean;
+    darkMode: boolean;
+    language: string;
+    enablePenalties: boolean;
+    enableBonuses: boolean;
+    reminderTimes: string[];
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StreakDay {

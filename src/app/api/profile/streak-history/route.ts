@@ -19,9 +19,9 @@ export async function GET() {
     const db = client.db('solofitness');
     
     // Get user's profile with streak history
-    const userProfile = await db.collection('profiles').findOne(
-      { userId: new ObjectId(user.id) },
-      { projection: { streakHistory: 1 } }
+    const userProfile = await db.collection('users').findOne(
+      { _id: new ObjectId(user.id) },
+      { projection: { 'profile.streakHistory': 1 } }
     );
 
     if (!userProfile) {
@@ -32,7 +32,7 @@ export async function GET() {
     }
 
     // Sort streak history by date in descending order
-    const sortedStreakHistory = (userProfile.streakHistory || []).sort((a: any, b: any) => 
+    const sortedStreakHistory = (userProfile.profile.streakHistory || []).sort((a: any, b: any) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 

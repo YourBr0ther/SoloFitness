@@ -69,8 +69,21 @@ export class Auth {
     const client = await clientPromise;
     const db = client.db();
 
-    const existingUser = await db.collection('users').findOne({ email });
-    if (existingUser) return null;
+    // Check for existing email or username
+    const existingUser = await db.collection('users').findOne({
+      $or: [
+        { email },
+        { username }
+      ]
+    });
+    if (existingUser) {
+      if (existingUser.email === email) {
+        throw new Error('Email already exists');
+      }
+      if (existingUser.username === username) {
+        throw new Error('Username already exists');
+      }
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date();
@@ -78,7 +91,15 @@ export class Auth {
     const defaultProfile = {
       level: 1,
       xp: 0,
-      currentStreak: 0
+      currentStreak: 0,
+      longestStreak: 0,
+      streakHistory: [],
+      exerciseCounts: {
+        pushups: 0,
+        situps: 0,
+        squats: 0,
+        milesRan: 0
+      }
     };
 
     const defaultSettings = {

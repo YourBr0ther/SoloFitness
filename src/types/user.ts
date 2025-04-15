@@ -1,8 +1,17 @@
+import { StreakDay } from './profile';
+
 export interface UserProfile {
   level: number;
   xp: number;
   currentStreak: number;
-  avatarUrl?: string;
+  longestStreak: number;
+  streakHistory: StreakDay[];
+  exerciseCounts: {
+    pushups: number;
+    situps: number;
+    squats: number;
+    milesRan: number;
+  };
 }
 
 export interface UserSettings {

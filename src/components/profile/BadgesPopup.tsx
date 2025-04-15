@@ -25,18 +25,25 @@ export default function BadgesPopup({ badges, onClose }: BadgesPopupProps) {
         </div>
         
         <div className="space-y-4">
-          {badges.map((badge) => (
-            <Badge
-              key={badge.id}
-              name={badge.name}
-              description={badge.description}
-              icon={badge.icon}
-              progress={badge.progress}
-              total={badge.total}
-              unlocked={badge.unlocked}
-              isNew={badge.isNew}
-            />
-          ))}
+          {(!badges || badges.length === 0) ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400 mb-2">No badges earned yet</p>
+              <p className="text-sm text-gray-500">Complete workouts and maintain streaks to earn badges!</p>
+            </div>
+          ) : (
+            badges.map((badge) => (
+              <Badge
+                key={badge.id}
+                name={badge.name}
+                description={badge.description}
+                icon={badge.icon}
+                progress={badge.progress}
+                total={badge.total}
+                unlocked={badge.unlocked}
+                isNew={badge.isNew}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>

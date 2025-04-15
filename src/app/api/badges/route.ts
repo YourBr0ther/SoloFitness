@@ -19,9 +19,9 @@ export async function GET() {
     const db = client.db('solofitness');
     
     // Get user's profile with badges
-    const userProfile = await db.collection('profiles').findOne(
-      { userId: new ObjectId(user.id) },
-      { projection: { badges: 1 } }
+    const userProfile = await db.collection('users').findOne(
+      { _id: new ObjectId(user.id) },
+      { projection: { 'profile.badges': 1 } }
     );
 
     if (!userProfile) {
@@ -31,7 +31,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(userProfile.badges || []);
+    return NextResponse.json(userProfile.profile.badges || []);
     
   } catch (error) {
     console.error('Error fetching badges:', error);

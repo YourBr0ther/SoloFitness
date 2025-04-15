@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { Document } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -19,18 +20,30 @@ interface StreakEntry {
   };
 }
 
-interface UserProfile {
+interface UserProfile extends Document {
   _id: ObjectId;
-  userId: ObjectId;
-  level: number;
-  streakHistory: StreakEntry[];
-  longestStreak: number;
-  xp: number;
-  exerciseCounts: {
-    pushups: number;
-    situps: number;
-    squats: number;
-    milesRan: number;
+  email: string;
+  username: string;
+  profile: {
+    level: number;
+    xp: number;
+    currentStreak: number;
+    longestStreak: number;
+    streakHistory: StreakEntry[];
+    exerciseCounts: {
+      pushups: number;
+      situps: number;
+      squats: number;
+      milesRan: number;
+    };
+  };
+  settings: {
+    enableNotifications: boolean;
+    darkMode: boolean;
+    language: string;
+    enablePenalties: boolean;
+    enableBonuses: boolean;
+    reminderTimes: string[];
   };
 }
 
@@ -99,9 +112,9 @@ export async function GET() {
     const db = client.db('solofitness');
     
     // Get user profile to determine level and streak history
-    const userProfile = await db.collection('profiles').findOne<UserProfile>(
-      { userId: new ObjectId(userId) },
-      { projection: { level: 1, streakHistory: 1 } }
+    const userProfile = await db.collection('users').findOne<UserProfile>(
+      { _id: new ObjectId(userId) },
+      { projection: { 'profile.level': 1, 'profile.streakHistory': 1 } }
     );
 
     if (!userProfile) {
@@ -111,19 +124,19 @@ export async function GET() {
       );
     }
 
-    const level = userProfile.level || 1;
+    const level = userProfile.profile.level || 1;
     
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
     
     // Check if today's workout already exists
-    const todayEntry = userProfile.streakHistory?.find((entry: StreakEntry) => entry.date === today);
+    const todayEntry = userProfile.profile.streakHistory?.find((entry: StreakEntry) => entry.date === today);
 
     // Check for penalties (incomplete tasks from yesterday)
     const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
     
     // Find yesterday's entry to check for incomplete tasks
-    const yesterdayEntry = userProfile.streakHistory?.find((entry: StreakEntry) => entry.date === yesterdayDate);
+    const yesterdayEntry = userProfile.profile.streakHistory?.find((entry: StreakEntry) => entry.date === yesterdayDate);
     
     if (yesterdayEntry && !yesterdayEntry.completed) {
       // Add penalties for incomplete tasks
@@ -193,15 +206,15 @@ export async function POST(request: Request) {
     // Get the user's profile
     const client = await clientPromise;
     const db = client.db('solofitness');
-    const userProfile = await db.collection('profiles').findOne<UserProfile>(
-      { userId: new ObjectId(userId) },
-      { projection: { level: 1, streakHistory: 1, longestStreak: 1, xp: 1, exerciseCounts: 1 } }
+    const userProfile = await db.collection('users').findOne<UserProfile>(
+      { _id: new ObjectId(userId) },
+      { projection: { 'profile.level': 1, 'profile.streakHistory': 1, 'profile.longestStreak': 1, 'profile.xp': 1, 'profile.exerciseCounts': 1 } }
     );
     
     console.log('POST /api/workouts - Found user:', userProfile ? 'yes' : 'no');
-    console.log('POST /api/workouts - User has profile:', userProfile?.streakHistory ? 'yes' : 'no');
+    console.log('POST /api/workouts - User has profile:', userProfile?.profile.streakHistory ? 'yes' : 'no');
 
-    if (!userProfile || !userProfile.streakHistory) {
+    if (!userProfile || !userProfile.profile.streakHistory) {
       console.log('POST /api/workouts - User or profile not found');
       return NextResponse.json(
         { message: 'User profile not found' },
@@ -209,11 +222,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const level = userProfile.level || 1;
+    const level = userProfile.profile.level || 1;
     const today = new Date().toISOString().split('T')[0];
     
     // Get today's entry
-    const todayEntryIndex = userProfile.streakHistory.findIndex((entry: StreakEntry) => entry.date === today);
+    const todayEntryIndex = userProfile.profile.streakHistory.findIndex((entry: StreakEntry) => entry.date === today);
     
     // Calculate XP earned
     const requirements = getExerciseRequirements(level);
@@ -225,10 +238,10 @@ export async function POST(request: Request) {
     
     // Calculate streak
     let currentStreak = 0;
-    let longestStreak = userProfile.longestStreak || 0;
+    let longestStreak = userProfile.profile.longestStreak || 0;
     
     if (isCompleted) {
-      const streakData = userProfile.streakHistory
+      const streakData = userProfile.profile.streakHistory
         .sort((a: StreakEntry, b: StreakEntry) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
       for (let i = 0; i < streakData.length; i++) {
@@ -248,9 +261,9 @@ export async function POST(request: Request) {
     
     if (todayEntryIndex >= 0) {
       // Update existing entry
-      console.log('POST /api/workouts - Updating existing entry:', userProfile.streakHistory[todayEntryIndex]._id);
+      console.log('POST /api/workouts - Updating existing entry:', userProfile.profile.streakHistory[todayEntryIndex]._id);
       updatedEntry = await db.collection('streakHistory').updateOne(
-        { _id: userProfile.streakHistory[todayEntryIndex]._id },
+        { _id: userProfile.profile.streakHistory[todayEntryIndex]._id },
         {
           $set: {
             completed: isCompleted,
@@ -274,11 +287,11 @@ export async function POST(request: Request) {
     console.log('POST /api/workouts - Updated/Created entry:', updatedEntry);
     
     // Update user profile
-    const totalXp = userProfile.xp + xpEarned;
+    const totalXp = userProfile.profile.xp + xpEarned;
     const newLevel = Math.floor(totalXp / 100) + 1;
     
     // Update the exercise counts in the profile
-    const oldExerciseCounts = userProfile.exerciseCounts || {
+    const oldExerciseCounts = userProfile.profile.exerciseCounts || {
       pushups: 0,
       situps: 0,
       squats: 0,
@@ -293,15 +306,15 @@ export async function POST(request: Request) {
     };
     
     console.log('POST /api/workouts - Updating profile with new counts:', newExerciseCounts);
-    await db.collection('profiles').updateOne(
-      { _id: userProfile._id },
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
       {
         $set: {
-          xp: totalXp,
-          level: newLevel,
-          currentStreak: isCompleted ? currentStreak : 0, // Reset streak if not completed
-          longestStreak,
-          exerciseCounts: newExerciseCounts
+          'profile.xp': totalXp,
+          'profile.level': newLevel,
+          'profile.currentStreak': isCompleted ? currentStreak : 0, // Reset streak if not completed
+          'profile.longestStreak': isCompleted ? currentStreak : 0,
+          'profile.exerciseCounts': newExerciseCounts
         }
       }
     );

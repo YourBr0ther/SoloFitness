@@ -10,6 +10,14 @@ async function initMongoDB() {
 
     const db = client.db('solofitness');
 
+    // Drop existing collections
+    console.log('Dropping existing collections...');
+    const collections = await db.listCollections().toArray();
+    for (const collection of collections) {
+      await db.collection(collection.name).drop();
+      console.log(`Dropped collection: ${collection.name}`);
+    }
+
     // Create collections and indexes
     await createCollections(db);
     await createIndexes(db);
@@ -33,29 +41,66 @@ async function createCollections(db) {
           email: { bsonType: 'string' },
           password: { bsonType: 'string' },
           username: { bsonType: 'string' },
-          createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' }
-        }
-      }
-    }
-  });
-
-  // Profile collection
-  await db.createCollection('profiles', {
-    validator: {
-      $jsonSchema: {
-        bsonType: 'object',
-        required: ['userId', 'level', 'xp', 'currentStreak', 'createdAt', 'updatedAt'],
-        properties: {
-          userId: { bsonType: 'objectId' },
           avatarUrl: { bsonType: 'string' },
-          level: { bsonType: 'int' },
-          xp: { bsonType: 'int' },
-          currentStreak: { bsonType: 'int' },
-          longestStreak: { bsonType: 'int' },
-          exerciseCounts: { bsonType: 'object' },
           createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' }
+          updatedAt: { bsonType: 'date' },
+          profile: {
+            bsonType: 'object',
+            properties: {
+              level: { bsonType: 'int' },
+              xp: { bsonType: 'int' },
+              currentStreak: { bsonType: 'int' },
+              longestStreak: { bsonType: 'int' },
+              streakHistory: { bsonType: 'array' },
+              exerciseCounts: { bsonType: 'object' }
+            }
+          },
+          settings: {
+            bsonType: 'object',
+            properties: {
+              enableNotifications: { bsonType: 'bool' },
+              darkMode: { bsonType: 'bool' },
+              language: { bsonType: 'string' },
+              enablePenalties: { bsonType: 'bool' },
+              enableBonuses: { bsonType: 'bool' },
+              reminderTimes: { bsonType: 'array' },
+              theme: { bsonType: 'string' },
+              timezone: { bsonType: 'string' },
+              units: {
+                bsonType: 'object',
+                properties: {
+                  weight: { bsonType: 'string' },
+                  distance: { bsonType: 'string' },
+                  height: { bsonType: 'string' }
+                }
+              },
+              privacy: {
+                bsonType: 'object',
+                properties: {
+                  profile: { bsonType: 'string' },
+                  activity: { bsonType: 'string' },
+                  achievements: { bsonType: 'string' }
+                }
+              },
+              notifications: {
+                bsonType: 'object',
+                properties: {
+                  email: { bsonType: 'bool' },
+                  push: { bsonType: 'bool' },
+                  inApp: { bsonType: 'bool' }
+                }
+              },
+              preferences: {
+                bsonType: 'object',
+                properties: {
+                  showTutorial: { bsonType: 'bool' },
+                  showTips: { bsonType: 'bool' },
+                  showProgress: { bsonType: 'bool' },
+                  showLeaderboard: { bsonType: 'bool' }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -66,9 +111,9 @@ async function createCollections(db) {
     validator: {
       $jsonSchema: {
         bsonType: 'object',
-        required: ['profileId', 'date', 'completed', 'createdAt', 'updatedAt'],
+        required: ['userId', 'date', 'completed', 'createdAt', 'updatedAt'],
         properties: {
-          profileId: { bsonType: 'objectId' },
+          userId: { bsonType: 'objectId' },
           date: { bsonType: 'string' },
           completed: { bsonType: 'bool' },
           xpEarned: { bsonType: 'int' },
@@ -85,9 +130,9 @@ async function createCollections(db) {
     validator: {
       $jsonSchema: {
         bsonType: 'object',
-        required: ['profileId', 'name', 'description', 'icon', 'unlocked', 'createdAt', 'updatedAt'],
+        required: ['userId', 'name', 'description', 'icon', 'unlocked', 'createdAt', 'updatedAt'],
         properties: {
-          profileId: { bsonType: 'objectId' },
+          userId: { bsonType: 'objectId' },
           name: { bsonType: 'string' },
           description: { bsonType: 'string' },
           icon: { bsonType: 'string' },
@@ -160,27 +205,6 @@ async function createCollections(db) {
       }
     }
   });
-
-  // UserSettings collection
-  await db.createCollection('userSettings', {
-    validator: {
-      $jsonSchema: {
-        bsonType: 'object',
-        required: ['userId', 'createdAt', 'updatedAt'],
-        properties: {
-          userId: { bsonType: 'objectId' },
-          enableNotifications: { bsonType: 'bool' },
-          darkMode: { bsonType: 'bool' },
-          language: { bsonType: 'string' },
-          enablePenalties: { bsonType: 'bool' },
-          enableBonuses: { bsonType: 'bool' },
-          reminderTimes: { bsonType: 'array' },
-          createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' }
-        }
-      }
-    }
-  });
 }
 
 async function createIndexes(db) {
@@ -188,14 +212,11 @@ async function createIndexes(db) {
   await db.collection('users').createIndex({ email: 1 }, { unique: true });
   await db.collection('users').createIndex({ username: 1 }, { unique: true });
 
-  // Profiles indexes
-  await db.collection('profiles').createIndex({ userId: 1 }, { unique: true });
-
   // StreakHistory indexes
-  await db.collection('streakHistory').createIndex({ profileId: 1, date: 1 }, { unique: true });
+  await db.collection('streakHistory').createIndex({ userId: 1, date: 1 }, { unique: true });
 
   // Badges indexes
-  await db.collection('badges').createIndex({ profileId: 1, name: 1 }, { unique: true });
+  await db.collection('badges').createIndex({ userId: 1, name: 1 }, { unique: true });
 
   // Exercises indexes
   await db.collection('exercises').createIndex({ userId: 1, name: 1 }, { unique: true });
@@ -205,9 +226,6 @@ async function createIndexes(db) {
 
   // WorkoutExercises indexes
   await db.collection('workoutExercises').createIndex({ workoutId: 1, exerciseId: 1 }, { unique: true });
-
-  // UserSettings indexes
-  await db.collection('userSettings').createIndex({ userId: 1 }, { unique: true });
 }
 
 // Run the initialization

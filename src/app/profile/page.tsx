@@ -19,12 +19,14 @@ interface ApiError extends Error {
 
 // Default profile structure for initialization
 const defaultProfile: Profile = {
-  id: "",
-  username: "",
-  avatarUrl: "/default-avatar.svg",
+  id: '',
+  email: '',
+  username: '',
+  avatarUrl: '/default-avatar.svg',
   level: 1,
   xp: 0,
   currentStreak: 0,
+  longestStreak: 0,
   streakHistory: [],
   notifications: [],
   preferences: {
@@ -32,7 +34,29 @@ const defaultProfile: Profile = {
     enableBonuses: true
   },
   badges: [],
-  apiKey: ""
+  apiKey: '',
+  profile: {
+    level: 1,
+    xp: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    streakHistory: [],
+    badges: []
+  },
+  settings: {
+    enableNotifications: false,
+    darkMode: false,
+    language: 'en',
+    enablePenalties: true,
+    enableBonuses: true,
+    reminderTimes: []
+  },
+  reminderTimes: [],
+  enableNotifications: true,
+  enablePenalties: true,
+  enableBonuses: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
 export default function ProfilePage() {
@@ -57,27 +81,34 @@ export default function ProfilePage() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        setIsLoadingProfile(true);
-        const response = await apiService.getProfile();
-        // The API returns a nested profile object, so we need to merge it with our default profile
-        const profileData = {
-          ...defaultProfile,
-          ...response.data, // The API response is already the profile object
-          badges: response.data.badges || []
-        };
-        setProfile(profileData);
-        setIsLoadingProfile(false);
-      } catch (err: unknown) {
-        console.error('Error loading profile:', err instanceof Error ? err.message : 'Unknown error');
-        
-        const apiError = err as ApiError;
-        if (apiError?.status === 401) {
+        const response = await fetch('/api/profile');
+        if (response.status === 401) {
           router.push('/login');
           return;
         }
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
+        const data = await response.json();
         
-        setProfileError(err as Error);
-        setIsLoadingProfile(false);
+        // Merge the fetched data with default values
+        const loadedProfile = {
+          ...defaultProfile,
+          ...data,
+          profile: {
+            ...defaultProfile.profile,
+            ...(data.profile || {})
+          },
+          settings: {
+            ...defaultProfile.settings,
+            ...(data.settings || {})
+          }
+        };
+        
+        setProfile(loadedProfile);
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        setProfile(defaultProfile);
       }
     };
 
@@ -158,7 +189,7 @@ export default function ProfilePage() {
   };
 
   // Check if there are any new badges
-  const hasNewBadges = Array.isArray(profile.badges) && profile.badges.some(badge => badge.isNew);
+  const hasNewBadges = Array.isArray(profile?.badges) && profile.badges.some(badge => badge.isNew);
 
   const validateUsername = (username: string) => {
     if (username.length < 3) {
@@ -323,7 +354,7 @@ export default function ProfilePage() {
     setShowBadges(true);
     
     // Mark all badges as viewed
-    if (hasNewBadges) {
+    if (hasNewBadges && profile.badges) {
       const updatedBadges = profile.badges.map(badge => ({
         ...badge,
         isNew: false
@@ -352,6 +383,14 @@ export default function ProfilePage() {
   };
 
   const renderBadges = () => {
+    if (!profile.badges || profile.badges.length === 0) {
+      return (
+        <div className="text-center py-4">
+          <p className="text-gray-400">Start your fitness journey to earn badges!</p>
+        </div>
+      );
+    }
+    
     return profile.badges.map((badge: GymBadge) => (
       <div
         key={badge.id}

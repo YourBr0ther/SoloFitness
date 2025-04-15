@@ -7,33 +7,50 @@
 - `email`: String (Unique, Required)
 - `password`: String (Required)
 - `username`: String (Unique, Required)
+- `avatarUrl`: String (Default: '/default-avatar.svg')
 - `createdAt`: DateTime (Required)
 - `updatedAt`: DateTime (Required)
-- Relations:
-  - `profile`: One-to-One with Profile
-  - `exercises`: One-to-Many with Exercise
-  - `workouts`: One-to-Many with Workout
-  - `settings`: One-to-One with UserSettings
-
-### Profiles
-- `_id`: ObjectId (Primary Key)
-- `userId`: ObjectId (Foreign Key to User, Unique, Required)
-- `avatarUrl`: String
-- `level`: Integer (Required)
-- `xp`: Integer (Required)
-- `currentStreak`: Integer (Required)
-- `longestStreak`: Integer
-- `exerciseCounts`: Object (Stores counts for different exercise types)
-- `createdAt`: DateTime (Required)
-- `updatedAt`: DateTime (Required)
-- Relations:
-  - `user`: One-to-One with User
-  - `streakHistory`: One-to-Many with StreakHistory
-  - `badges`: One-to-Many with Badge
+- `profile`: Object
+  - `level`: Integer
+  - `xp`: Integer
+  - `currentStreak`: Integer
+  - `longestStreak`: Integer
+  - `streakHistory`: Array of StreakHistory
+  - `exerciseCounts`: Object
+    - `pushups`: Integer
+    - `situps`: Integer
+    - `squats`: Integer
+    - `milesRan`: Number
+- `settings`: Object
+  - `enableNotifications`: Boolean
+  - `darkMode`: Boolean
+  - `language`: String
+  - `enablePenalties`: Boolean
+  - `enableBonuses`: Boolean
+  - `reminderTimes`: Array of String
+  - `theme`: String ('light' | 'dark' | 'system')
+  - `timezone`: String
+  - `units`: Object
+    - `weight`: String ('kg' | 'lbs')
+    - `distance`: String ('km' | 'miles')
+    - `height`: String ('cm' | 'feet')
+  - `privacy`: Object
+    - `profile`: String ('public' | 'friends' | 'private')
+    - `activity`: String ('public' | 'friends' | 'private')
+    - `achievements`: String ('public' | 'friends' | 'private')
+  - `notifications`: Object
+    - `email`: Boolean
+    - `push`: Boolean
+    - `inApp`: Boolean
+  - `preferences`: Object
+    - `showTutorial`: Boolean
+    - `showTips`: Boolean
+    - `showProgress`: Boolean
+    - `showLeaderboard`: Boolean
 
 ### StreakHistory
 - `_id`: ObjectId (Primary Key)
-- `profileId`: ObjectId (Foreign Key to Profile, Required)
+- `userId`: ObjectId (Foreign Key to User, Required)
 - `date`: String (YYYY-MM-DD format, Required)
 - `completed`: Boolean (Required)
 - `xpEarned`: Integer
@@ -41,11 +58,11 @@
 - `createdAt`: DateTime (Required)
 - `updatedAt`: DateTime (Required)
 - Relations:
-  - `profile`: Many-to-One with Profile
+  - `user`: Many-to-One with User
 
 ### Badges
 - `_id`: ObjectId (Primary Key)
-- `profileId`: ObjectId (Foreign Key to Profile, Required)
+- `userId`: ObjectId (Foreign Key to User, Required)
 - `name`: String (Required)
 - `description`: String (Required)
 - `icon`: String (Required)
@@ -56,7 +73,7 @@
 - `createdAt`: DateTime (Required)
 - `updatedAt`: DateTime (Required)
 - Relations:
-  - `profile`: Many-to-One with Profile
+  - `user`: Many-to-One with User
 
 ### Exercises
 - `_id`: ObjectId (Primary Key)
@@ -99,34 +116,17 @@
   - `workout`: Many-to-One with Workout
   - `exercise`: Many-to-One with Exercise
 
-### UserSettings
-- `_id`: ObjectId (Primary Key)
-- `userId`: ObjectId (Foreign Key to User, Unique, Required)
-- `enableNotifications`: Boolean
-- `darkMode`: Boolean
-- `language`: String
-- `enablePenalties`: Boolean
-- `enableBonuses`: Boolean
-- `reminderTimes`: Array of Strings
-- `createdAt`: DateTime (Required)
-- `updatedAt`: DateTime (Required)
-- Relations:
-  - `user`: One-to-One with User
-
 ## Indexes
 
 ### Users
 - `email`: Unique
 - `username`: Unique
 
-### Profiles
-- `userId`: Unique
-
 ### StreakHistory
-- `profileId + date`: Unique
+- `userId + date`: Unique
 
 ### Badges
-- `profileId + name`: Unique
+- `userId + name`: Unique
 
 ### Exercises
 - `userId + name`: Unique
@@ -135,7 +135,4 @@
 - `userId + name`: Unique
 
 ### WorkoutExercises
-- `workoutId + exerciseId`: Unique
-
-### UserSettings
-- `userId`: Unique 
+- `workoutId + exerciseId`: Unique 

@@ -266,11 +266,33 @@ export class ApiService extends BaseApiService {
 
   // Settings endpoints
   async getUserSettings(): Promise<ApiResponse<UserSettings>> {
-    return this.get<UserSettings>('/settings');
+    const response = await this.get<User>('/users/me');
+    return {
+      data: response.data.settings || {
+        enableNotifications: true,
+        darkMode: false,
+        language: 'en',
+        enablePenalties: true,
+        enableBonuses: true,
+        reminderTimes: ["09:00", "18:00"]
+      },
+      status: response.status
+    };
   }
 
   async updateUserSettings(data: Partial<UserSettings>): Promise<ApiResponse<UserSettings>> {
-    return this.put<UserSettings>('/settings', data);
+    const response = await this.put<User>('/users/me', { settings: data });
+    return {
+      data: response.data.settings || {
+        enableNotifications: true,
+        darkMode: false,
+        language: 'en',
+        enablePenalties: true,
+        enableBonuses: true,
+        reminderTimes: ["09:00", "18:00"]
+      },
+      status: response.status
+    };
   }
 
   // Achievement endpoints

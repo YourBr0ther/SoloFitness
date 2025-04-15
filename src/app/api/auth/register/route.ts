@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Auth } from '@/lib/auth';
+import { Auth } from '@/lib/auth/index';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -21,13 +21,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, password, username } = validation.data;
-    const auth = new Auth();
+    const auth = Auth.getInstance();
     
     const result = await auth.register(email, password, username);
     if (!result) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
+        { error: 'Registration failed' },
+        { status: 500 }
       );
     }
 
@@ -45,6 +45,20 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error) {
     console.error('Registration error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Email already exists') {
+        return NextResponse.json(
+          { error: 'Email already exists' },
+          { status: 409 }
+        );
+      }
+      if (error.message === 'Username already exists') {
+        return NextResponse.json(
+          { error: 'Username already exists' },
+          { status: 409 }
+        );
+      }
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
