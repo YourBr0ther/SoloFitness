@@ -41,10 +41,10 @@ export default function RootLayout({
           <AuthProvider>
             <ErrorBoundary>
               {children}
+              <BottomNav />
             </ErrorBoundary>
           </AuthProvider>
         </ApiProvider>
-        <BottomNav />
       </body>
     </html>
   );

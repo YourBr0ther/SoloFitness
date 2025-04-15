@@ -3,19 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageSquare, BookOpen, User } from "lucide-react";
-import { useEffect, useState } from "react";
-import { AUTH_CONFIG } from "@/config/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 const BottomNav = () => {
   const pathname = usePathname();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // Check if token exists in cookies
-    const cookies = document.cookie;
-    const token = cookies ? cookies.includes(`${AUTH_CONFIG.TOKEN_STORAGE_KEY}=`) : false;
-    setIsLoggedIn(token);
-  }, [pathname]); // Re-check when pathname changes
+  const { isAuthenticated } = useAuth();
 
   const navItems = [
     {
@@ -36,7 +28,7 @@ const BottomNav = () => {
   ];
 
   // Don't render navigation if user is not logged in
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return null;
   }
 
