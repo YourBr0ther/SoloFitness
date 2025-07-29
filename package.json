@@ -1,0 +1,38 @@
+{
+  "name": "solofitness",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.30",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@prisma/client": "^5.22.0",
+    "next-auth": "^4.24.7",
+    "bcryptjs": "^2.4.3",
+    "tailwindcss": "^3.4.10",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.45",
+    "zustand": "^4.5.5",
+    "framer-motion": "^11.5.4",
+    "lucide-react": "^0.390.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/minimatch": "^5.1.2",
+    "typescript": "^5.6.2",
+    "prisma": "^5.22.0",
+    "next-pwa": "^5.6.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.8"
+  }
+}

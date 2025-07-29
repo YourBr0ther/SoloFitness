@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String   @unique
+  password      String
+  profilePicture String?
+  level         Int      @default(1)
+  currentXP     Int      @default(0)
+  totalXP       Int      @default(0)
+  currentStreak Int      @default(0)
+  longestStreak Int      @default(0)
+  createdAt     DateTime @default(now())
+  
+  dailyLogs     DailyLog[]
+  achievements  UserAchievement[]
+  settings      UserSettings?
+}
+
+model UserSettings {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  penaltiesEnabled Boolean @default(true)
+  bonusEnabled    Boolean @default(true)
+  
+  user User @relation(fields: [userId], references: [id])
+}
+
+model DailyLog {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  pushups     Int      @default(0)
+  situps      Int      @default(0)
+  squats      Int      @default(0)
+  milesRan    Float    @default(0)
+  xpEarned    Int      @default(0)
+  completed   Boolean  @default(false)
+  
+  penalties   Penalty[]
+  bonusTasks  BonusTask[]
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, date])
+}
+
+model Penalty {
+  id         String   @id @default(cuid())
+  dailyLogId String
+  exercise   String
+  amount     Int
+  completed  Boolean  @default(false)
+  
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id])
+}
+
+model BonusTask {
+  id         String   @id @default(cuid())
+  dailyLogId String
+  task       String
+  completed  Boolean  @default(false)
+  
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id])
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  requirement String
+  
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+  
+  @@unique([userId, achievementId])
+}
