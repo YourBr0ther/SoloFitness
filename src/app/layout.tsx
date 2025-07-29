@@ -3,6 +3,7 @@ import { Inter, Bebas_Neue } from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/providers/SessionProvider';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import DatabaseConnectionProvider from '@/components/DatabaseConnectionProvider';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -62,9 +63,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${bebasNeue.variable}`}>
       <body className="bg-background-dark text-white min-h-screen">
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+        <DatabaseConnectionProvider>
+          <SessionProvider>
+            {children}
+          </SessionProvider>
+        </DatabaseConnectionProvider>
         <ServiceWorkerRegistration />
       </body>
     </html>

@@ -149,3 +149,17 @@ Thumbs.db
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Docker and deployment files (keep examples)
+docker-compose.local.yml
+docker-compose.test.yml
+docker-compose.override.yml
+
+# Security and configuration notes
+nginx-proxy-manager-settings.md
+fix-ssl-issues.md
+
+# Temporary Docker compose files
+docker-compose.swarm-fixed.yml
+docker-compose.portainer.yml
+docker-compose.production.yml

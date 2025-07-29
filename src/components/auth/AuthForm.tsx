@@ -62,7 +62,8 @@ export default function AuthForm({ isLogin, onToggle }: AuthFormProps) {
           if (result?.error) {
             setError('Registration successful, but login failed. Please try logging in.');
           } else {
-            router.push('/');
+            // Use replace instead of push and force reload to ensure session is loaded
+            window.location.href = '/';
           }
         }
       }

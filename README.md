@@ -110,10 +110,9 @@ A Progressive Web App that gamifies daily fitness routines inspired by the Solo 
 
 3. **Set up environment variables**
    ```bash
-   # Create .env file with the following content:
-   NEXTAUTH_SECRET=your-secret-key-change-this-in-production
-   NEXTAUTH_URL=http://localhost:3000
-   DATABASE_URL="postgresql://user:password@localhost:5432/solofitness"
+   # Copy the example file and edit it
+   cp .env.example .env
+   # Edit .env with your specific values
    ```
 
 4. **Start the database**
@@ -141,6 +140,44 @@ To run the entire application with Docker:
 
 ```bash
 docker compose up --build
+```
+
+### Docker Hub Deployment
+
+For quick deployment using pre-built images:
+
+```bash
+# Copy environment variables
+cp .env.example .env
+# Edit .env with your settings
+
+# Deploy with Docker Hub image
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**Docker Hub**: `yourbr0ther/solofitness:latest`
+
+**Available Tags**:
+- `latest` - Latest stable release
+- `v1.0.x` - Specific version releases
+
+**Environment Variables**:
+- `DATABASE_URL` - PostgreSQL connection string
+- `NEXTAUTH_SECRET` - 32+ character secret key
+- `NEXTAUTH_URL` - Your app's public URL
+- `NEXTAUTH_URL_INTERNAL` - Internal URL (for reverse proxy setups)
+- `NODE_ENV` - Set to `production`
+
+**Quick Start**:
+```bash
+# Create .env file
+echo "DATABASE_URL=postgresql://user:password@db:5432/solofitness" > .env
+echo "NEXTAUTH_SECRET=$(openssl rand -base64 32)" >> .env
+echo "NEXTAUTH_URL=https://your-domain.com" >> .env
+echo "NODE_ENV=production" >> .env
+
+# Deploy
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## Level Progression System
@@ -366,6 +403,40 @@ docker compose -f docker-compose.prod.yml up
 NEXTAUTH_SECRET=your-super-secure-secret-key
 NEXTAUTH_URL=https://your-domain.com
 DATABASE_URL=your-production-database-url
+```
+
+## Security Features
+
+### Built-in Security Headers
+- `X-Frame-Options: DENY` - Prevents clickjacking attacks
+- `X-Content-Type-Options: nosniff` - Prevents MIME type sniffing
+- `X-XSS-Protection: 1; mode=block` - Enables XSS filtering
+- `Referrer-Policy: strict-origin-when-cross-origin` - Controls referrer information
+- `Content-Security-Policy` - Restricts resource loading
+
+### Authentication Security
+- **Secure password hashing** with bcrypt (12 rounds)
+- **JWT tokens** with secure cookie settings
+- **HTTPS-only cookies** in production
+- **Session management** with NextAuth.js
+- **Case-insensitive usernames** to prevent conflicts
+
+### Database Security
+- **Input validation** on all API endpoints
+- **Prisma ORM** with parameterized queries (SQL injection protection)
+- **Rate limiting** on authentication endpoints
+- **Environment variable secrets** (never hardcoded)
+
+### Production Recommendations
+```bash
+# Use strong secrets (32+ characters)
+NEXTAUTH_SECRET=$(openssl rand -base64 32)
+
+# Use HTTPS in production
+NEXTAUTH_URL=https://your-domain.com
+
+# Secure database connection
+DATABASE_URL=postgresql://user:password@secure-host:5432/db?sslmode=require
 ```
 
 ### Deployment Platforms

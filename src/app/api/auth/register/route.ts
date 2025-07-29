@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { checkDatabaseHealth } from '@/lib/health';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check database connectivity first
+    const dbHealth = await checkDatabaseHealth();
+    if (!dbHealth.connected) {
+      console.error('Database connection failed during registration:', dbHealth.error);
+      return NextResponse.json(
+        { 
+          error: 'Database connection error. Please try again later.',
+          details: process.env.NODE_ENV === 'development' ? dbHealth.error : undefined 
+        },
+        { status: 503 }
+      );
+    }
+
     const { username, email, password } = await request.json();
 
     if (!username || !email || !password) {
