@@ -42,9 +42,32 @@ A Progressive Web App that gamifies daily fitness routines inspired by the Solo 
 
 ### 📱 **PWA Features**
 - **Mobile Installation**: Add to home screen like a native app
+- **Push Notifications**: Workout reminders, achievements, and streak milestones
 - **Responsive Design**: Perfect on all device sizes
 - **Touch Optimized**: Thumb-friendly button sizes and gestures
 - **Offline Ready**: Service worker configuration included
+
+### 📸 **Profile Features**
+- **Profile Pictures**: Upload and manage custom avatars
+- **User Profiles**: Comprehensive statistics and achievement galleries
+- **Settings Management**: Customize penalties, bonuses, and notifications
+- **Case-Insensitive Login**: Username or email login with smart matching
+
+### 🔔 **Notification System**
+- **Daily Reminders**: Customizable workout reminder times
+- **Achievement Alerts**: Celebrate unlocked achievements instantly
+- **Streak Milestones**: Get notified at important streak markers (3, 7, 14, 21, 30, 50+ days)
+- **Workout Celebrations**: Level-up and XP gain notifications
+- **Smart Scheduling**: Persistent reminders with weekend options
+- **Permission Handling**: Smart browser notification permission requests
+- **Test Notifications**: Built-in test feature to verify notifications work
+
+### 🔐 **Authentication Features**
+- **Flexible Login**: Use either username or email to log in
+- **Case-Insensitive**: Username matching works regardless of case (JohnDoe = johndoe)
+- **Secure Registration**: bcrypt password hashing with input validation
+- **Auto-Login**: Seamless login after successful registration
+- **Session Management**: JWT-based sessions with NextAuth.js
 
 ### 🎨 **Solo Leveling Aesthetic**
 - **Custom Theme**: Deep navy, vibrant blue, and cyan color scheme
@@ -87,7 +110,7 @@ A Progressive Web App that gamifies daily fitness routines inspired by the Solo 
 
 3. **Set up environment variables**
    ```bash
-   # Create .env.local file with the following content:
+   # Create .env file with the following content:
    NEXTAUTH_SECRET=your-secret-key-change-this-in-production
    NEXTAUTH_URL=http://localhost:3000
    DATABASE_URL="postgresql://user:password@localhost:5432/solofitness"
@@ -95,7 +118,7 @@ A Progressive Web App that gamifies daily fitness routines inspired by the Solo 
 
 4. **Start the database**
    ```bash
-   docker-compose up db -d
+   docker compose up db -d
    ```
 
 5. **Set up the database**
@@ -117,7 +140,7 @@ A Progressive Web App that gamifies daily fitness routines inspired by the Solo 
 To run the entire application with Docker:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ## Level Progression System
@@ -185,6 +208,8 @@ docker-compose up --build
 - `PATCH /api/user` - Update user settings
 - `PATCH /api/penalties` - Update penalty completion status
 - `PATCH /api/bonus-tasks` - Update bonus task completion status
+- `POST /api/user/profile-picture` - Upload profile picture
+- `DELETE /api/user/profile-picture` - Remove profile picture
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/[...nextauth]` - NextAuth endpoints
 
@@ -196,6 +221,7 @@ SoloFitness/
 │   └── schema.prisma          # Database schema with full relationships
 ├── public/
 │   ├── icons/                 # PWA icons (48x48 to 512x512)
+│   ├── custom-sw.js          # Custom service worker for notifications
 │   ├── manifest.json          # PWA manifest
 │   └── favicon.ico
 ├── src/
@@ -225,13 +251,17 @@ SoloFitness/
 │   │   │   └── XPDisplay.tsx
 │   │   ├── providers/
 │   │   │   └── SessionProvider.tsx
+│   │   │   └── ServiceWorkerRegistration.tsx  # Custom service worker
 │   │   └── ui/
-│   │       └── ParticleBackground.tsx
+│   │       ├── ParticleBackground.tsx
+│   │       ├── ProfilePicture.tsx      # Profile picture component
+│   │       └── NotificationSettings.tsx # Notification controls
 │   ├── lib/                   # Business logic and utilities
 │   │   ├── achievements.ts    # 10 achievements with type safety
 │   │   ├── auth.ts           # NextAuth configuration
 │   │   ├── bonus-tasks.ts    # 15 bonus tasks system
 │   │   ├── level-system.ts   # XP and level calculations
+│   │   ├── notifications.ts  # Push notification manager
 │   │   └── prisma.ts         # Database client
 │   └── types/                # TypeScript definitions
 │       ├── index.ts          # Main app types
@@ -250,10 +280,10 @@ SoloFitness/
 **Database Connection Error**
 ```bash
 # Make sure PostgreSQL is running
-docker-compose up db -d
+docker compose up db -d
 
 # Check if the database is accessible
-docker-compose exec db psql -U user -d solofitness
+docker compose exec db psql -U user -d solofitness
 ```
 
 **Prisma Issues**
@@ -327,7 +357,7 @@ npm start
 docker build -t solofitness .
 
 # Run with production database
-docker-compose -f docker-compose.prod.yml up
+docker compose -f docker-compose.prod.yml up
 ```
 
 ### Environment Variables for Production

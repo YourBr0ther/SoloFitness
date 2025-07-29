@@ -42,7 +42,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { penaltiesEnabled, bonusEnabled } = body;
+    const { 
+      penaltiesEnabled, 
+      bonusEnabled, 
+      notificationsEnabled,
+      dailyReminderTime,
+      weekendReminders,
+      achievementNotifications,
+      streakReminders 
+    } = body;
 
     // Update user settings
     const updatedSettings = await prisma.userSettings.upsert({
@@ -50,11 +58,21 @@ export async function PATCH(request: NextRequest) {
       update: {
         ...(penaltiesEnabled !== undefined && { penaltiesEnabled }),
         ...(bonusEnabled !== undefined && { bonusEnabled }),
+        ...(notificationsEnabled !== undefined && { notificationsEnabled }),
+        ...(dailyReminderTime !== undefined && { dailyReminderTime }),
+        ...(weekendReminders !== undefined && { weekendReminders }),
+        ...(achievementNotifications !== undefined && { achievementNotifications }),
+        ...(streakReminders !== undefined && { streakReminders }),
       },
       create: {
         userId: session.user.id,
         penaltiesEnabled: penaltiesEnabled ?? true,
         bonusEnabled: bonusEnabled ?? true,
+        notificationsEnabled: notificationsEnabled ?? false,
+        dailyReminderTime: dailyReminderTime ?? "09:00",
+        weekendReminders: weekendReminders ?? true,
+        achievementNotifications: achievementNotifications ?? true,
+        streakReminders: streakReminders ?? true,
       },
     });
 

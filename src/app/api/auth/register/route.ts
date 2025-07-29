@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { email },
-          { username }
+          { email: email.toLowerCase() },
+          { username: { equals: username, mode: 'insensitive' } }
         ]
       }
     });
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         username,
-        email,
+        email: email.toLowerCase(),
         password: hashedPassword,
         settings: {
           create: {

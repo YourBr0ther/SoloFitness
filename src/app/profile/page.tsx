@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { calculateUserAchievements } from '@/lib/achievements';
 import ProfilePicture from '@/components/ui/ProfilePicture';
+import NotificationSettings from '@/components/ui/NotificationSettings';
 
 interface ProfileData {
   user: any;
@@ -70,7 +71,7 @@ export default function ProfilePage() {
     }
   };
 
-  const updateSettings = async (setting: string, value: boolean) => {
+  const updateSettings = async (setting: string, value: boolean | string) => {
     try {
       const response = await fetch('/api/user', {
         method: 'PATCH',
@@ -243,37 +244,50 @@ export default function ProfilePage() {
         {/* Settings */}
         <div className="bg-primary-900/50 border border-primary-700 rounded-lg p-6 mb-6">
           <h3 className="text-lg font-semibold text-white mb-4">Settings</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-white font-medium">Penalty System</div>
-                <div className="text-sm text-gray-400">Add penalty exercises for missed days</div>
+          <div className="space-y-6">
+            {/* Game Settings */}
+            <div className="space-y-4">
+              <h4 className="text-md font-medium text-primary-400">Game Features</h4>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white font-medium">Penalty System</div>
+                  <div className="text-sm text-gray-400">Add penalty exercises for missed days</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={data.settings?.penaltiesEnabled ?? true}
+                    onChange={(e) => updateSettings('penaltiesEnabled', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-primary-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+                </label>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={data.settings?.penaltiesEnabled ?? true}
-                  onChange={(e) => updateSettings('penaltiesEnabled', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-primary-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white font-medium">Bonus Tasks</div>
+                  <div className="text-sm text-gray-400">Receive daily bonus challenges</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={data.settings?.bonusEnabled ?? true}
+                    onChange={(e) => updateSettings('bonusEnabled', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-primary-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+                </label>
+              </div>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-white font-medium">Bonus Tasks</div>
-                <div className="text-sm text-gray-400">Receive daily bonus challenges</div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={data.settings?.bonusEnabled ?? true}
-                  onChange={(e) => updateSettings('bonusEnabled', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-primary-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
+
+            {/* Notification Settings */}
+            <div className="border-t border-primary-700 pt-6">
+              <h4 className="text-md font-medium text-primary-400 mb-4">Notifications</h4>
+              <NotificationSettings 
+                settings={data.settings || {}}
+                onSettingsChange={updateSettings}
+              />
             </div>
           </div>
         </div>

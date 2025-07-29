@@ -14,10 +14,17 @@ import PenaltyCard from '@/components/dashboard/PenaltyCard';
 import BonusTaskCard from '@/components/dashboard/BonusTaskCard';
 import { LEVEL_REQUIREMENTS } from '@/lib/level-system';
 import { DailyLog, User, Penalty, BonusTask } from '@/types';
+import { notificationManager } from '@/lib/notifications';
 
 interface DashboardData {
   dailyLog: DailyLog;
-  user: User;
+  user: User & {
+    settings?: {
+      notificationsEnabled?: boolean;
+      achievementNotifications?: boolean;
+      streakReminders?: boolean;
+    };
+  };
   requirements: typeof LEVEL_REQUIREMENTS[1];
   levelInfo: {
     currentLevel: number;
@@ -85,6 +92,37 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
+        const responseData = await response.json();
+        
+        // Handle notifications based on API response (only if user has notifications enabled)
+        if (responseData.notifications && data?.user?.settings?.notificationsEnabled) {
+          const { notifications } = responseData;
+          
+          // Show workout completion notification
+          if (notifications.workoutCompleted && notifications.xpGained > 0) {
+            await notificationManager.showWorkoutCompleteNotification(
+              notifications.xpGained,
+              notifications.newLevel
+            );
+          }
+          
+          // Show streak milestone notification
+          if (notifications.newStreak && data?.user?.settings?.streakReminders) {
+            await notificationManager.showStreakNotification(notifications.newStreak);
+          }
+          
+          // Show achievement notifications
+          if (notifications.newlyUnlocked && notifications.newlyUnlocked.length > 0 && 
+              data?.user?.settings?.achievementNotifications) {
+            for (const achievement of notifications.newlyUnlocked) {
+              await notificationManager.showAchievementNotification(
+                achievement.name,
+                achievement.description
+              );
+            }
+          }
+        }
+        
         fetchDashboardData(); // Refresh data
       } else {
         const errorData = await response.json().catch(() => ({}));

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculateDailyXP, calculateCompletionPercentage, LEVEL_REQUIREMENTS, getNextLevelXP } from '@/lib/level-system';
 import { getRandomBonusTask, shouldAssignBonusTask } from '@/lib/bonus-tasks';
+import { calculateUserAchievements } from '@/lib/achievements';
 
 export async function GET(request: NextRequest) {
   try {
@@ -236,6 +237,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     // Update streak if this completes the day for the first time
+    let newStreak = updatedUser.currentStreak;
     if (isCompleted && !existingDailyLog?.completed) {
       // Check yesterday for streak continuation
       const yesterday = new Date(today);
@@ -250,7 +252,7 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
-      let newStreak = 1;
+      newStreak = 1;
       if (yesterdayLog?.completed) {
         // Continue streak
         newStreak = updatedUser.currentStreak + 1;
@@ -265,10 +267,63 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
+    // Check for newly unlocked achievements
+    const userForAchievements = {
+      ...updatedUser,
+      currentStreak: newStreak,
+      totalXP: newTotalXP,
+      level: levelInfo.currentLevel,
+    };
+
+    // Get all daily logs for achievement calculations
+    const allLogs = await prisma.dailyLog.findMany({
+      where: { userId: session.user.id },
+      orderBy: { date: 'desc' },
+    });
+
+    const achievements = calculateUserAchievements(userForAchievements, allLogs);
+    const newlyUnlocked = [];
+
+    // Check which achievements are newly unlocked
+    for (const achievement of achievements) {
+      if (achievement.unlocked) {
+        const existingUserAchievement = await prisma.userAchievement.findUnique({
+          where: {
+            userId_achievementId: {
+              userId: session.user.id,
+              achievementId: achievement.id,
+            },
+          },
+        });
+
+        if (!existingUserAchievement) {
+          // This is a newly unlocked achievement
+          await prisma.userAchievement.create({
+            data: {
+              userId: session.user.id,
+              achievementId: achievement.id,
+            },
+          });
+          newlyUnlocked.push(achievement);
+        }
+      }
+    }
+
+    // Return data needed for client-side notifications
+    const notificationData = {
+      workoutCompleted: isCompleted && !existingDailyLog?.completed,
+      xpGained: xpDelta,
+      leveledUp: levelInfo.currentLevel > user.level,
+      newLevel: levelInfo.currentLevel > user.level ? levelInfo.currentLevel : undefined,
+      newStreak: isCompleted && !existingDailyLog?.completed ? newStreak : undefined,
+      newlyUnlocked,
+    };
+
     return NextResponse.json({ 
       dailyLog: updatedLog,
       levelInfo,
       newTotalXP,
+      notifications: notificationData,
     });
   } catch (error) {
     console.error('Daily log update error:', error);

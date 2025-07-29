@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Bebas_Neue } from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/providers/SessionProvider';
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -64,6 +65,7 @@ export default function RootLayout({
         <SessionProvider>
           {children}
         </SessionProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

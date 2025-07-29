@@ -103,17 +103,17 @@ export default function AuthForm({ isLogin, onToggle }: AuthFormProps) {
 
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-            Email
+            {isLogin ? 'Username or Email' : 'Email'}
           </label>
           <input
-            type="email"
+            type={isLogin ? "text" : "email"}
             id="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
             required
             className="w-full px-3 py-2 bg-primary-800 border border-primary-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
-            placeholder="Enter your email"
+            placeholder={isLogin ? "Enter your username or email" : "Enter your email"}
           />
         </div>
 

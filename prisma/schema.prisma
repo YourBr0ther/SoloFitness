@@ -27,10 +27,15 @@ model User {
 }
 
 model UserSettings {
-  id              String  @id @default(cuid())
-  userId          String  @unique
-  penaltiesEnabled Boolean @default(true)
-  bonusEnabled    Boolean @default(true)
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  penaltiesEnabled      Boolean @default(true)
+  bonusEnabled          Boolean @default(true)
+  notificationsEnabled  Boolean @default(false)
+  dailyReminderTime     String? @default("09:00")
+  weekendReminders      Boolean @default(true)
+  achievementNotifications Boolean @default(true)
+  streakReminders       Boolean @default(true)
   
   user User @relation(fields: [userId], references: [id])
 }
