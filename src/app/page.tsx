@@ -145,7 +145,7 @@ export default function Dashboard() {
         {/* Today's Progress */}
         <TodayProgress
           completedExercises={completedCount}
-          totalExercises={4}
+          totalExercises={exercises.length}
           xpEarned={log.xpEarned}
           percentage={percentage}
         />
