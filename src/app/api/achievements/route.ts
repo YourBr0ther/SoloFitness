@@ -57,10 +57,7 @@ export async function POST() {
     const user = await prisma.user.findFirst({
       include: {
         achievements: true,
-        dailyLogs: {
-          orderBy: { date: 'desc' },
-          take: 1,
-        },
+        dailyLogs: true, // Fetch all logs to check centurion achievements
       },
     });
 

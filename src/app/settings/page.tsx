@@ -38,12 +38,15 @@ export default function SettingsPage() {
 
   const handleExport = async () => {
     try {
-      // Fetch all user data
-      const response = await fetch('/api/user');
-      const userData = await response.json();
+      // Fetch comprehensive user data including logs, penalties, and achievements
+      const response = await fetch('/api/user/export');
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+      const exportData = await response.json();
 
       // Create downloadable JSON
-      const dataStr = JSON.stringify(userData, null, 2);
+      const dataStr = JSON.stringify(exportData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(dataBlob);
 
@@ -60,14 +63,27 @@ export default function SettingsPage() {
       setTimeout(() => setShowExportSuccess(false), 3000);
     } catch (error) {
       console.error('Export failed:', error);
+      alert('Failed to export data. Please try again.');
     }
   };
 
   const handleReset = async () => {
-    // This would call a reset endpoint - for now just close the modal
-    setShowResetConfirm(false);
-    // TODO: Implement actual reset functionality
-    alert('Reset functionality will be implemented with a dedicated API endpoint');
+    try {
+      const response = await fetch('/api/user/reset', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset data');
+      }
+
+      setShowResetConfirm(false);
+      // Refetch user data to reflect the reset
+      refetch();
+    } catch (error) {
+      console.error('Reset failed:', error);
+      alert('Failed to reset data. Please try again.');
+    }
   };
 
   return (

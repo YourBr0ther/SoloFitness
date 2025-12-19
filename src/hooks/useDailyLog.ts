@@ -70,11 +70,23 @@ export function useUpdateDailyLog() {
 
   return useMutation({
     mutationFn: updateDailyLog,
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['dailyLog'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      // Also check for new achievements
-      fetch('/api/achievements', { method: 'POST' });
+      // Check for new achievements and refresh user data if any were unlocked
+      try {
+        const response = await fetch('/api/achievements', { method: 'POST' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.newUnlocks?.length > 0) {
+            // Refresh user data to show updated XP from achievements
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+            queryClient.invalidateQueries({ queryKey: ['achievements'] });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check achievements:', error);
+      }
     },
   });
 }
@@ -94,10 +106,21 @@ export function useTogglePenalty() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['dailyLog'] });
-      // Check for "arise" achievement
-      fetch('/api/achievements', { method: 'POST' });
+      // Check for "arise" achievement and refresh if unlocked
+      try {
+        const response = await fetch('/api/achievements', { method: 'POST' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.newUnlocks?.length > 0) {
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+            queryClient.invalidateQueries({ queryKey: ['achievements'] });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check achievements:', error);
+      }
     },
   });
 }
