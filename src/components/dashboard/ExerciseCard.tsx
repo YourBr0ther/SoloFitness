@@ -6,7 +6,7 @@ import { Plus, Minus, Check } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ExerciseType, DistanceUnit } from '@/types';
 import { getExerciseIcon, getExerciseName } from '@/lib/penaltySystem';
-import { formatDistanceValue, getUnitSuffix } from '@/lib/unitConversion';
+import { formatDistanceValue, getUnitSuffix, displayValueToKm } from '@/lib/unitConversion';
 
 interface ExerciseCardProps {
   type: ExerciseType;
@@ -15,6 +15,7 @@ interface ExerciseCardProps {
   distanceUnit?: DistanceUnit;
   onUpdate: (value: number) => void;
   penaltyAmount?: number;
+  isUpdating?: boolean;
 }
 
 export function ExerciseCard({
@@ -24,6 +25,7 @@ export function ExerciseCard({
   distanceUnit = 'km',
   onUpdate,
   penaltyAmount = 0,
+  isUpdating = false,
 }: ExerciseCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(current.toString());
@@ -43,22 +45,38 @@ export function ExerciseCard({
   const percentage = Math.min(100, (current / target) * 100);
 
   const handleIncrement = () => {
-    const step = isRunning ? 0.5 : 5;
-    const newValue = isRunning ? current + 0.5 : current + step;
-    onUpdate(Math.min(newValue, isRunning ? 50 : 500));
+    if (isRunning) {
+      // Increment 0.5 in display unit, convert back to km for storage
+      const displayStep = 0.5;
+      const currentDisplay = formatDistanceValue(current, distanceUnit);
+      const newDisplay = currentDisplay + displayStep;
+      const newKm = displayValueToKm(newDisplay, distanceUnit);
+      onUpdate(Math.min(newKm, 50)); // Max 50 km
+    } else {
+      onUpdate(Math.min(current + 5, 500));
+    }
   };
 
   const handleDecrement = () => {
-    const step = isRunning ? 0.5 : 5;
-    const newValue = isRunning ? current - 0.5 : current - step;
-    onUpdate(Math.max(0, newValue));
+    if (isRunning) {
+      // Decrement 0.5 in display unit, convert back to km for storage
+      const displayStep = 0.5;
+      const currentDisplay = formatDistanceValue(current, distanceUnit);
+      const newDisplay = Math.max(0, currentDisplay - displayStep);
+      const newKm = displayValueToKm(newDisplay, distanceUnit);
+      onUpdate(newKm);
+    } else {
+      onUpdate(Math.max(0, current - 5));
+    }
   };
 
   const handleInputSubmit = () => {
     const value = parseFloat(inputValue);
     if (!isNaN(value)) {
-      const maxValue = isRunning ? 50 : 500;
-      onUpdate(Math.max(0, Math.min(value, maxValue)));
+      const maxValue = isRunning ? 50 : 500; // Max in storage unit (km for running)
+      // Convert display value back to km for storage
+      const valueToStore = isRunning ? displayValueToKm(value, distanceUnit) : value;
+      onUpdate(Math.max(0, Math.min(valueToStore, maxValue)));
     }
     setIsEditing(false);
   };
@@ -119,7 +137,7 @@ export function ExerciseCard({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={handleDecrement}
-          disabled={current <= 0}
+          disabled={current <= 0 || isUpdating}
           className="w-14 h-14 rounded-full bg-background-elevated border border-primary-400/30
                      flex items-center justify-center text-primary-400
                      disabled:opacity-30 disabled:cursor-not-allowed
@@ -169,8 +187,10 @@ export function ExerciseCard({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={handleIncrement}
+          disabled={isUpdating}
           className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-600 to-primary-400
                      flex items-center justify-center text-white shadow-glow-blue
+                     disabled:opacity-50 disabled:cursor-not-allowed
                      active:from-primary-500 active:to-primary-300 transition-colors touch-target"
         >
           <Plus size={24} />

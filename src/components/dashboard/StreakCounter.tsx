@@ -44,11 +44,7 @@ export function StreakCounter({
       </div>
 
       <p className={`text-lg font-medium ${isActive ? 'text-streak' : 'text-gray-500'}`}>
-        {currentStreak === 0
-          ? 'Start your journey'
-          : currentStreak === 1
-          ? 'Day Streak'
-          : 'Day Streak'}
+        {currentStreak === 0 ? 'Start your journey' : 'Day Streak'}
       </p>
 
       {longestStreak > 0 && (
