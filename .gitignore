@@ -37,3 +37,6 @@ next-env.d.ts
 # prisma
 prisma/*.db
 prisma/*.db-journal
+
+# MCP configuration (contains project-specific refs)
+.mcp.json
