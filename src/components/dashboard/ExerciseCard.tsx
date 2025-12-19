@@ -132,7 +132,7 @@ export function ExerciseCard({
             autoFocus
             className="flex-1 text-center text-3xl font-bold bg-background-elevated
                        border border-primary-400/50 rounded-lg py-2 text-white
-                       focus:outline-none focus:border-accent-cyan"
+                       focus:outline-none focus:border-accent-cyan select-text"
             step={isRunning ? '0.1' : '1'}
           />
         ) : (

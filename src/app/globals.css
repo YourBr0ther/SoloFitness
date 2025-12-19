@@ -32,6 +32,9 @@ body {
   padding-bottom: var(--safe-area-inset-bottom);
   padding-left: var(--safe-area-inset-left);
   padding-right: var(--safe-area-inset-right);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Solo Leveling text glow effects */
