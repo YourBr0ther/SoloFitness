@@ -32,8 +32,6 @@
   <img src="docs/screenshots/settings.png" alt="Settings" width="200" />
 </p>
 
-> **Note**: Add your screenshots to `docs/screenshots/` directory.
-
 ## The Program
 
 SoloFitness follows a progressive overload approach over 365 days:
