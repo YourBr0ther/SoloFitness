@@ -214,13 +214,13 @@ export async function POST(request: Request) {
     const previousXP = hadPreviousWork ? calculateXP(previousValues, requirements) : 0;
     const xpDelta = xpEarned - previousXP;
 
-    // Update user stats
+    // Update user stats (XP should never decrease)
     const userUpdate: Record<string, unknown> = {
       totalPushups: { increment: Math.max(0, pushupsDiff) },
       totalSitups: { increment: Math.max(0, situpsDiff) },
       totalSquats: { increment: Math.max(0, squatsDiff) },
       totalRunningKm: { increment: Math.max(0, runningDiff) },
-      currentXP: { increment: xpDelta },
+      currentXP: { increment: Math.max(0, xpDelta) },
     };
 
     // Update streak if workout is complete

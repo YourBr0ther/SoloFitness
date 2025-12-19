@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Check } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ExerciseType, DistanceUnit } from '@/types';
-import { getExerciseIcon, getExerciseName } from '@/lib/penaltySystem';
+import { getExerciseIcon, getExerciseName, formatPenaltyAmount } from '@/lib/penaltySystem';
 import { formatDistanceValue, getUnitSuffix, displayValueToKm } from '@/lib/unitConversion';
 
 interface ExerciseCardProps {
@@ -94,7 +94,7 @@ export function ExerciseCard({
           <span className="font-semibold text-lg">{getExerciseName(type)}</span>
           {penaltyAmount > 0 && (
             <span className="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full">
-              +{penaltyAmount} penalty
+              +{formatPenaltyAmount(type, penaltyAmount, distanceUnit)} penalty
             </span>
           )}
         </div>

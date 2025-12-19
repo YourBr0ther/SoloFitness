@@ -80,6 +80,17 @@ export function calculateXP(
   const baseXP = 25;
   const bonusPerExercise = 10;
 
+  // Only award XP if at least one exercise has progress
+  const hasAnyProgress =
+    completed.pushups > 0 ||
+    completed.situps > 0 ||
+    completed.squats > 0 ||
+    completed.runningKm > 0;
+
+  if (!hasAnyProgress) {
+    return 0;
+  }
+
   let xp = baseXP;
 
   // Bonus for each exercise completed

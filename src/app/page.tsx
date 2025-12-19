@@ -164,6 +164,7 @@ export default function Dashboard() {
                 distanceUnit={user.distanceUnit as DistanceUnit}
                 onUpdate={(value) => handleExerciseUpdate(type, value)}
                 penaltyAmount={penaltiesByExercise[type]}
+                isUpdating={updateLog.isPending}
               />
             );
           })}
