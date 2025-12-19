@@ -70,9 +70,9 @@ export async function POST() {
 
     const allAchievements = await prisma.achievement.findMany();
     const unlockedKeys = new Set(
-      user.achievements.map((ua) =>
-        allAchievements.find((a) => a.id === ua.achievementId)?.key
-      )
+      user.achievements
+        .map((ua) => allAchievements.find((a) => a.id === ua.achievementId)?.key)
+        .filter((key): key is string => key !== undefined)
     );
 
     const newUnlocks: { key: string; name: string; icon: string; xpReward: number }[] = [];
@@ -90,7 +90,9 @@ export async function POST() {
       return !!result;
     };
 
-    // Check each achievement condition
+    // Check each achievement condition and collect achievements to unlock
+    const achievementsToUnlock: typeof allAchievements = [];
+
     for (const achievement of allAchievements) {
       if (unlockedKeys.has(achievement.key)) continue;
 
@@ -151,28 +153,41 @@ export async function POST() {
       }
 
       if (shouldUnlock) {
-        await prisma.userAchievement.create({
-          data: {
+        achievementsToUnlock.push(achievement);
+      }
+    }
+
+    // Unlock all achievements in a single transaction
+    if (achievementsToUnlock.length > 0) {
+      const totalXpReward = achievementsToUnlock.reduce((sum, a) => sum + a.xpReward, 0);
+
+      await prisma.$transaction(async (tx) => {
+        // Create all achievement records
+        await tx.userAchievement.createMany({
+          data: achievementsToUnlock.map((achievement) => ({
             userId: user.id,
             achievementId: achievement.id,
-          },
+          })),
         });
 
-        // Add XP reward
-        await prisma.user.update({
+        // Update user XP once with total reward
+        await tx.user.update({
           where: { id: user.id },
           data: {
-            currentXP: { increment: achievement.xpReward },
+            currentXP: { increment: totalXpReward },
           },
         });
+      });
 
+      // Build newUnlocks array for response
+      achievementsToUnlock.forEach((achievement) => {
         newUnlocks.push({
           key: achievement.key,
           name: achievement.name,
           icon: achievement.icon,
           xpReward: achievement.xpReward,
         });
-      }
+      });
     }
 
     return NextResponse.json({

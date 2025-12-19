@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useEffect } from 'react';
 import { DailyRequirements } from '@/types';
 import { useToast } from '@/components/providers/ToastProvider';
+import { calculateXP, isWorkoutComplete } from '@/lib/levelSystem';
 
 interface AchievementUnlock {
   key: string;
@@ -76,13 +77,15 @@ export function useDailyLog(date?: string) {
 
 export function useUpdateDailyLog() {
   const queryClient = useQueryClient();
-  const { showAchievementToast } = useToast();
+  const { showAchievementToast, showToast } = useToast();
 
-  // Store toast function in ref so it's available in callbacks
+  // Store toast functions in refs so they're available in callbacks
   const toastRef = useRef(showAchievementToast);
+  const errorToastRef = useRef(showToast);
   useEffect(() => {
     toastRef.current = showAchievementToast;
-  }, [showAchievementToast]);
+    errorToastRef.current = showToast;
+  }, [showAchievementToast, showToast]);
 
   return useMutation({
     mutationFn: updateDailyLog,
@@ -94,11 +97,32 @@ export function useUpdateDailyLog() {
       // Snapshot the previous value
       const previousLog = queryClient.getQueryData<DailyLogData>(['dailyLog', 'today']);
 
-      // Optimistically update the cache
+      // Optimistically update the cache with recalculated computed fields
       if (previousLog) {
+        // Merge new values with previous values
+        const mergedValues = {
+          pushups: newData.pushups ?? previousLog.pushups,
+          situps: newData.situps ?? previousLog.situps,
+          squats: newData.squats ?? previousLog.squats,
+          runningKm: newData.runningKm ?? previousLog.runningKm,
+        };
+
+        // Recalculate computed fields
+        const requirements: DailyRequirements = {
+          pushups: previousLog.targetPushups,
+          situps: previousLog.targetSitups,
+          squats: previousLog.targetSquats,
+          runningKm: previousLog.targetRunningKm,
+          dayNumber: previousLog.dayNumber,
+        };
+        const xpEarned = calculateXP(mergedValues, requirements);
+        const completed = isWorkoutComplete(mergedValues, requirements);
+
         queryClient.setQueryData<DailyLogData>(['dailyLog', 'today'], {
           ...previousLog,
-          ...newData,
+          ...mergedValues,
+          xpEarned,
+          completed,
         });
       }
 
@@ -136,6 +160,11 @@ export function useUpdateDailyLog() {
         }
       } catch (error) {
         console.error('Failed to check achievements:', error);
+        errorToastRef.current({
+          type: 'error',
+          title: 'Achievement Check Failed',
+          message: 'Could not verify new achievements.',
+        });
       }
     },
   });
@@ -143,13 +172,15 @@ export function useUpdateDailyLog() {
 
 export function useTogglePenalty() {
   const queryClient = useQueryClient();
-  const { showAchievementToast } = useToast();
+  const { showAchievementToast, showToast } = useToast();
 
-  // Store toast function in ref so it's available in callbacks
+  // Store toast functions in refs so they're available in callbacks
   const toastRef = useRef(showAchievementToast);
+  const errorToastRef = useRef(showToast);
   useEffect(() => {
     toastRef.current = showAchievementToast;
-  }, [showAchievementToast]);
+    errorToastRef.current = showToast;
+  }, [showAchievementToast, showToast]);
 
   return useMutation({
     mutationFn: async ({ penaltyId, completed }: { penaltyId: string; completed: boolean }) => {
@@ -208,6 +239,11 @@ export function useTogglePenalty() {
         }
       } catch (error) {
         console.error('Failed to check achievements:', error);
+        errorToastRef.current({
+          type: 'error',
+          title: 'Achievement Check Failed',
+          message: 'Could not verify new achievements.',
+        });
       }
     },
   });

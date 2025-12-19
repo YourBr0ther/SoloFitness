@@ -53,6 +53,31 @@ export async function PATCH(request: Request) {
       );
     }
 
+    // Validate completed is a boolean
+    if (typeof completed !== 'boolean') {
+      return NextResponse.json(
+        { error: 'Completed must be a boolean' },
+        { status: 400 }
+      );
+    }
+
+    // Check current state for idempotency
+    const currentPenalty = await prisma.penalty.findUnique({
+      where: { id: penaltyId },
+    });
+
+    if (!currentPenalty) {
+      return NextResponse.json(
+        { error: 'Penalty not found' },
+        { status: 404 }
+      );
+    }
+
+    // Return early if already in desired state (idempotent)
+    if (currentPenalty.completed === completed) {
+      return NextResponse.json(currentPenalty);
+    }
+
     const penalty = await prisma.penalty.update({
       where: { id: penaltyId },
       data: { completed },

@@ -38,12 +38,19 @@ export async function GET() {
       user.currentStreak
     );
 
-    // Update streak if broken
+    // Update streak if broken (uses conditional update to avoid race conditions)
     if (streakStatus.shouldReset && user.currentStreak > 0) {
-      user = await prisma.user.update({
-        where: { id: user.id },
+      const updated = await prisma.user.updateMany({
+        where: {
+          id: user.id,
+          currentStreak: { gt: 0 }, // Only update if streak still > 0
+        },
         data: { currentStreak: 0 },
       });
+      // Refresh user if streak was reset
+      if (updated.count > 0) {
+        user = { ...user, currentStreak: 0 };
+      }
     }
 
     return NextResponse.json({

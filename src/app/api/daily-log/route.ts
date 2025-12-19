@@ -85,18 +85,20 @@ export async function GET(request: Request) {
           yesterdayRequirements
         );
 
-        // Create penalties
-        for (const penalty of penaltyCalcs) {
-          await prisma.penalty.create({
-            data: {
-              userId: user.id,
-              dailyLogId: log.id,
-              exercise: penalty.exercise,
-              amount: penalty.penaltyAmount,
-              completed: false,
-            },
-          });
-        }
+        // Create penalties atomically
+        await prisma.$transaction(
+          penaltyCalcs.map((penalty) =>
+            prisma.penalty.create({
+              data: {
+                userId: user.id,
+                dailyLogId: log!.id,
+                exercise: penalty.exercise,
+                amount: penalty.penaltyAmount,
+                completed: false,
+              },
+            })
+          )
+        );
 
         // Refetch log with penalties
         log = await prisma.dailyLog.findUnique({
@@ -180,35 +182,6 @@ export async function POST(request: Request) {
     const xpEarned = calculateXP(newValues, requirements);
     const completed = isWorkoutComplete(newValues, requirements);
 
-    if (log) {
-      // Update existing log
-      log = await prisma.dailyLog.update({
-        where: { id: log.id },
-        data: {
-          ...newValues,
-          xpEarned,
-          completed,
-        },
-        include: { penalties: true },
-      });
-    } else {
-      // Create new log
-      log = await prisma.dailyLog.create({
-        data: {
-          userId: user.id,
-          date,
-          ...newValues,
-          targetPushups: requirements.pushups,
-          targetSitups: requirements.situps,
-          targetSquats: requirements.squats,
-          targetRunningKm: requirements.runningKm,
-          xpEarned,
-          completed,
-        },
-        include: { penalties: true },
-      });
-    }
-
     // Calculate difference in values for lifetime stats
     const pushupsDiff = newValues.pushups - previousValues.pushups;
     const situpsDiff = newValues.situps - previousValues.situps;
@@ -247,9 +220,45 @@ export async function POST(request: Request) {
       userUpdate.totalWorkouts = { increment: 1 };
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: userUpdate,
+    // Use transaction to ensure atomicity of log and user updates
+    log = await prisma.$transaction(async (tx) => {
+      let updatedLog;
+      if (log) {
+        // Update existing log
+        updatedLog = await tx.dailyLog.update({
+          where: { id: log.id },
+          data: {
+            ...newValues,
+            xpEarned,
+            completed,
+          },
+          include: { penalties: true },
+        });
+      } else {
+        // Create new log
+        updatedLog = await tx.dailyLog.create({
+          data: {
+            userId: user.id,
+            date,
+            ...newValues,
+            targetPushups: requirements.pushups,
+            targetSitups: requirements.situps,
+            targetSquats: requirements.squats,
+            targetRunningKm: requirements.runningKm,
+            xpEarned,
+            completed,
+          },
+          include: { penalties: true },
+        });
+      }
+
+      // Update user stats atomically with log update
+      await tx.user.update({
+        where: { id: user.id },
+        data: userUpdate,
+      });
+
+      return updatedLog;
     });
 
     return NextResponse.json({

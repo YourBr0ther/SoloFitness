@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser, useUpdateUser } from '@/hooks/useUser';
+import { useToast } from '@/components/providers/ToastProvider';
 import { Navigation } from '@/components/layout/Navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { data: user, isLoading, refetch } = useUser();
   const updateUser = useUpdateUser();
+  const { showToast } = useToast();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showExportSuccess, setShowExportSuccess] = useState(false);
 
@@ -65,7 +67,11 @@ export default function SettingsPage() {
       setTimeout(() => setShowExportSuccess(false), 3000);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export data. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Export Failed',
+        message: 'Failed to export data. Please try again.',
+      });
     }
   };
 
@@ -80,13 +86,17 @@ export default function SettingsPage() {
       }
 
       setShowResetConfirm(false);
-      // Refetch user data and invalidate all caches to reflect the reset
+      // Clear all caches to ensure fresh state after reset
+      queryClient.clear();
+      // Refetch user data
       refetch();
-      queryClient.invalidateQueries({ queryKey: ['achievements'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyLog'] });
     } catch (error) {
       console.error('Reset failed:', error);
-      alert('Failed to reset data. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Reset Failed',
+        message: 'Failed to reset data. Please try again.',
+      });
     }
   };
 
