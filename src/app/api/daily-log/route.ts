@@ -131,7 +131,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { pushups, situps, squats, runningKm } = body;
+
+    // Validate and clamp input values to prevent invalid data
+    const clamp = (value: number | undefined, min: number, max: number) => {
+      if (value === undefined || value === null) return undefined;
+      return Math.max(min, Math.min(max, value));
+    };
+
+    const pushups = clamp(body.pushups, 0, 500);
+    const situps = clamp(body.situps, 0, 500);
+    const squats = clamp(body.squats, 0, 500);
+    const runningKm = clamp(body.runningKm, 0, 50);
 
     const user = await prisma.user.findFirst();
     if (!user) {

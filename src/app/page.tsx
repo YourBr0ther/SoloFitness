@@ -72,6 +72,20 @@ export default function Dashboard() {
 
   const exercises: ExerciseType[] = ['pushups', 'situps', 'squats', 'running'];
 
+  // Type-safe helper to get current and target values for each exercise
+  const getExerciseValues = (type: ExerciseType): { current: number; target: number } => {
+    switch (type) {
+      case 'pushups':
+        return { current: log.pushups, target: log.targetPushups };
+      case 'situps':
+        return { current: log.situps, target: log.targetSitups };
+      case 'squats':
+        return { current: log.squats, target: log.targetSquats };
+      case 'running':
+        return { current: log.runningKm, target: log.targetRunningKm };
+    }
+  };
+
   const handleExerciseUpdate = (type: ExerciseType, value: number) => {
     updateLog.mutate({ [type === 'running' ? 'runningKm' : type]: value });
   };
@@ -81,9 +95,8 @@ export default function Dashboard() {
   };
 
   const completedCount = exercises.filter((type) => {
-    const current = type === 'running' ? log.runningKm : log[type];
-    const target = type === 'running' ? log.targetRunningKm : log[`target${type.charAt(0).toUpperCase() + type.slice(1)}` as keyof typeof log];
-    return current >= (target as number);
+    const { current, target } = getExerciseValues(type);
+    return current >= target;
   }).length;
 
   const percentage = calculateCompletionPercentage(
@@ -149,18 +162,14 @@ export default function Dashboard() {
         {/* Exercise Cards */}
         <div className="space-y-4">
           {exercises.map((type) => {
-            const current = type === 'running' ? log.runningKm : log[type];
-            const target =
-              type === 'running'
-                ? log.targetRunningKm
-                : log[`target${type.charAt(0).toUpperCase() + type.slice(1)}` as keyof typeof log];
+            const { current, target } = getExerciseValues(type);
 
             return (
               <ExerciseCard
                 key={type}
                 type={type}
-                current={current as number}
-                target={target as number}
+                current={current}
+                target={target}
                 distanceUnit={user.distanceUnit as DistanceUnit}
                 onUpdate={(value) => handleExerciseUpdate(type, value)}
                 penaltyAmount={penaltiesByExercise[type]}

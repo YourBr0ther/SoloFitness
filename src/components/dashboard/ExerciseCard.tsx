@@ -42,7 +42,7 @@ export function ExerciseCard({
   const displayTarget = isRunning ? formatDistanceValue(target, distanceUnit) : target;
   const unit = isRunning ? getUnitSuffix(distanceUnit) : 'reps';
   const isComplete = current >= target;
-  const percentage = Math.min(100, (current / target) * 100);
+  const percentage = target > 0 ? Math.min(100, (current / target) * 100) : 0;
 
   const handleIncrement = () => {
     if (isRunning) {
