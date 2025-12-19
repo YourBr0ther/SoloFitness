@@ -80,9 +80,10 @@ export default function SettingsPage() {
       }
 
       setShowResetConfirm(false);
-      // Refetch user data and invalidate achievements cache to reflect the reset
+      // Refetch user data and invalidate all caches to reflect the reset
       refetch();
       queryClient.invalidateQueries({ queryKey: ['achievements'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyLog'] });
     } catch (error) {
       console.error('Reset failed:', error);
       alert('Failed to reset data. Please try again.');
