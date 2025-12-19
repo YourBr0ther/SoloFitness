@@ -1,7 +1,16 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef, useEffect } from 'react';
 import { DailyRequirements } from '@/types';
+import { useToast } from '@/components/providers/ToastProvider';
+
+interface AchievementUnlock {
+  key: string;
+  name: string;
+  icon: string;
+  xpReward: number;
+}
 
 interface Penalty {
   id: string;
@@ -67,6 +76,13 @@ export function useDailyLog(date?: string) {
 
 export function useUpdateDailyLog() {
   const queryClient = useQueryClient();
+  const { showAchievementToast } = useToast();
+
+  // Store toast function in ref so it's available in callbacks
+  const toastRef = useRef(showAchievementToast);
+  useEffect(() => {
+    toastRef.current = showAchievementToast;
+  }, [showAchievementToast]);
 
   return useMutation({
     mutationFn: updateDailyLog,
@@ -107,6 +123,15 @@ export function useUpdateDailyLog() {
           if (data.newUnlocks?.length > 0) {
             queryClient.invalidateQueries({ queryKey: ['user'] });
             queryClient.invalidateQueries({ queryKey: ['achievements'] });
+
+            // Show toast for each new achievement
+            (data.newUnlocks as AchievementUnlock[]).forEach((achievement) => {
+              toastRef.current({
+                name: achievement.name,
+                icon: achievement.icon,
+                xpReward: achievement.xpReward,
+              });
+            });
           }
         }
       } catch (error) {
@@ -118,6 +143,13 @@ export function useUpdateDailyLog() {
 
 export function useTogglePenalty() {
   const queryClient = useQueryClient();
+  const { showAchievementToast } = useToast();
+
+  // Store toast function in ref so it's available in callbacks
+  const toastRef = useRef(showAchievementToast);
+  useEffect(() => {
+    toastRef.current = showAchievementToast;
+  }, [showAchievementToast]);
 
   return useMutation({
     mutationFn: async ({ penaltyId, completed }: { penaltyId: string; completed: boolean }) => {
@@ -163,6 +195,15 @@ export function useTogglePenalty() {
           if (data.newUnlocks?.length > 0) {
             queryClient.invalidateQueries({ queryKey: ['user'] });
             queryClient.invalidateQueries({ queryKey: ['achievements'] });
+
+            // Show toast for each new achievement
+            (data.newUnlocks as AchievementUnlock[]).forEach((achievement) => {
+              toastRef.current({
+                name: achievement.name,
+                icon: achievement.icon,
+                xpReward: achievement.xpReward,
+              });
+            });
           }
         }
       } catch (error) {

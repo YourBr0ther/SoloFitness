@@ -54,10 +54,10 @@ export async function GET() {
 // POST /api/achievements - Check and unlock achievements
 export async function POST() {
   try {
+    // Only fetch user and existing achievements - no daily logs
     const user = await prisma.user.findFirst({
       include: {
         achievements: true,
-        dailyLogs: true, // Fetch all logs to check centurion achievements
       },
     });
 
@@ -75,7 +75,20 @@ export async function POST() {
       )
     );
 
-    const newUnlocks: string[] = [];
+    const newUnlocks: { key: string; name: string; icon: string; xpReward: number }[] = [];
+
+    // Helper function for targeted daily log queries (only runs when needed)
+    const checkDailyLogCondition = async (
+      field: 'pushups' | 'situps' | 'squats' | 'runningKm' | 'completed',
+      value: number | boolean
+    ) => {
+      const whereClause = { userId: user.id, [field]: typeof value === 'boolean' ? value : { gte: value } };
+      const result = await prisma.dailyLog.findFirst({
+        where: whereClause,
+        select: { id: true },
+      });
+      return !!result;
+    };
 
     // Check each achievement condition
     for (const achievement of allAchievements) {
@@ -97,16 +110,16 @@ export async function POST() {
           shouldUnlock = user.longestStreak >= 30;
           break;
         case 'pushup_centurion':
-          shouldUnlock = user.dailyLogs.some((log) => log.pushups >= 100);
+          shouldUnlock = await checkDailyLogCondition('pushups', 100);
           break;
         case 'situp_centurion':
-          shouldUnlock = user.dailyLogs.some((log) => log.situps >= 100);
+          shouldUnlock = await checkDailyLogCondition('situps', 100);
           break;
         case 'squat_centurion':
-          shouldUnlock = user.dailyLogs.some((log) => log.squats >= 100);
+          shouldUnlock = await checkDailyLogCondition('squats', 100);
           break;
         case 'marathon_runner':
-          shouldUnlock = user.dailyLogs.some((log) => log.runningKm >= 10);
+          shouldUnlock = await checkDailyLogCondition('runningKm', 10);
           break;
         case 'thousand_pushups':
           shouldUnlock = user.totalPushups >= 1000;
@@ -118,7 +131,7 @@ export async function POST() {
           shouldUnlock = user.totalRunningKm >= 100;
           break;
         case 'perfect_day':
-          shouldUnlock = user.dailyLogs.some((log) => log.completed);
+          shouldUnlock = await checkDailyLogCondition('completed', true);
           break;
         case 'shadow_monarch':
           // Check if user is on day 365
@@ -131,6 +144,7 @@ export async function POST() {
           // Check if user has completed any penalty
           const completedPenalty = await prisma.penalty.findFirst({
             where: { userId: user.id, completed: true },
+            select: { id: true },
           });
           shouldUnlock = !!completedPenalty;
           break;
@@ -152,7 +166,12 @@ export async function POST() {
           },
         });
 
-        newUnlocks.push(achievement.key);
+        newUnlocks.push({
+          key: achievement.key,
+          name: achievement.name,
+          icon: achievement.icon,
+          xpReward: achievement.xpReward,
+        });
       }
     }
 
