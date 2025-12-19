@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Check } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -27,6 +27,13 @@ export function ExerciseCard({
 }: ExerciseCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(current.toString());
+
+  // Sync inputValue when current changes externally
+  useEffect(() => {
+    if (!isEditing) {
+      setInputValue(current.toString());
+    }
+  }, [current, isEditing]);
 
   const isRunning = type === 'running';
   const displayCurrent = isRunning ? formatDistanceValue(current, distanceUnit) : current;

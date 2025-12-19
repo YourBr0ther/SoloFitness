@@ -10,15 +10,16 @@ import { PenaltyBanner } from '@/components/dashboard/PenaltyBanner';
 import { LevelBadge } from '@/components/dashboard/LevelBadge';
 import { calculateCompletionPercentage } from '@/lib/levelSystem';
 import { ExerciseType, DistanceUnit } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function Dashboard() {
-  const { data: user, isLoading: userLoading } = useUser();
-  const { data: log, isLoading: logLoading } = useDailyLog();
+  const { data: user, isLoading: userLoading, error: userError, refetch: refetchUser } = useUser();
+  const { data: log, isLoading: logLoading, error: logError, refetch: refetchLog } = useDailyLog();
   const updateLog = useUpdateDailyLog();
   const togglePenalty = useTogglePenalty();
 
   const isLoading = userLoading || logLoading;
+  const hasError = userError || logError;
 
   if (isLoading) {
     return (
@@ -28,11 +29,39 @@ export default function Dashboard() {
     );
   }
 
+  if (hasError) {
+    const handleRetry = () => {
+      if (userError) refetchUser();
+      if (logError) refetchLog();
+    };
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-sm">
+          <AlertCircle className="w-12 h-12 text-danger mx-auto mb-4" />
+          <p className="text-xl font-semibold mb-2">Unable to Load Data</p>
+          <p className="text-primary-400/60 text-sm mb-6">
+            {userError ? 'Failed to load user data' : 'Failed to load today\'s workout'}
+          </p>
+          <button
+            onClick={handleRetry}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600
+                       hover:bg-primary-500 rounded-lg font-medium transition-colors"
+          >
+            <RefreshCw size={18} />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!user || !log) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 text-center">
         <div>
-          <p className="text-xl mb-2">Unable to load data</p>
+          <AlertCircle className="w-12 h-12 text-warning mx-auto mb-4" />
+          <p className="text-xl mb-2">No Data Found</p>
           <p className="text-primary-400/60 text-sm">
             Please check your database connection
           </p>

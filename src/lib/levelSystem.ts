@@ -142,14 +142,18 @@ export function getNextMilestone(currentLevel: number): LevelMilestone | null {
  * Get progress to next level (0-100)
  */
 export function getLevelProgress(dayNumber: number): number {
-  const currentLevel = getCurrentLevel(dayNumber);
+  // Clamp dayNumber to valid range
+  const day = Math.max(1, Math.min(365, dayNumber));
+
+  const currentLevel = getCurrentLevel(day);
   if (currentLevel >= 10) return 100;
 
   const currentMilestone = LEVEL_MILESTONES[currentLevel - 1];
   const nextMilestone = LEVEL_MILESTONES[currentLevel];
 
   const daysInLevel = nextMilestone.day - currentMilestone.day;
-  const daysSinceLevel = dayNumber - currentMilestone.day;
+  const daysSinceLevel = day - currentMilestone.day;
 
-  return Math.round((daysSinceLevel / daysInLevel) * 100);
+  // Clamp result to 0-100
+  return Math.max(0, Math.min(100, Math.round((daysSinceLevel / daysInLevel) * 100)));
 }

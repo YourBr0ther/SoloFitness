@@ -205,13 +205,22 @@ export async function POST(request: Request) {
     const squatsDiff = newValues.squats - previousValues.squats;
     const runningDiff = newValues.runningKm - previousValues.runningKm;
 
+    // Calculate XP delta - check if ANY exercise had previous values
+    const hadPreviousWork =
+      previousValues.pushups > 0 ||
+      previousValues.situps > 0 ||
+      previousValues.squats > 0 ||
+      previousValues.runningKm > 0;
+    const previousXP = hadPreviousWork ? calculateXP(previousValues, requirements) : 0;
+    const xpDelta = xpEarned - previousXP;
+
     // Update user stats
     const userUpdate: Record<string, unknown> = {
       totalPushups: { increment: Math.max(0, pushupsDiff) },
       totalSitups: { increment: Math.max(0, situpsDiff) },
       totalSquats: { increment: Math.max(0, squatsDiff) },
       totalRunningKm: { increment: Math.max(0, runningDiff) },
-      currentXP: { increment: xpEarned - (previousValues.pushups > 0 ? calculateXP(previousValues, requirements) : 0) },
+      currentXP: { increment: xpDelta },
     };
 
     // Update streak if workout is complete
