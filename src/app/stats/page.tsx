@@ -9,6 +9,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing';
 import { LevelBadge } from '@/components/dashboard/LevelBadge';
 import { formatDistance } from '@/lib/unitConversion';
 import { formatFullDate } from '@/lib/dateUtils';
+import { calculateCompletionPercentage } from '@/lib/levelSystem';
 import { DistanceUnit } from '@/types';
 import { Loader2, Flame, Zap, Trophy, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -36,12 +37,20 @@ export default function StatsPage() {
     );
   }
 
-  const percentage = Math.round(
-    ((log.pushups >= log.targetPushups ? 1 : 0) +
-      (log.situps >= log.targetSitups ? 1 : 0) +
-      (log.squats >= log.targetSquats ? 1 : 0) +
-      (log.runningKm >= log.targetRunningKm ? 1 : 0)) *
-      25
+  const percentage = calculateCompletionPercentage(
+    {
+      pushups: log.pushups,
+      situps: log.situps,
+      squats: log.squats,
+      runningKm: log.runningKm,
+    },
+    {
+      pushups: log.targetPushups,
+      situps: log.targetSitups,
+      squats: log.targetSquats,
+      runningKm: log.targetRunningKm,
+      dayNumber: log.dayNumber,
+    }
   );
 
   return (
