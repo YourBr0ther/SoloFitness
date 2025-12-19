@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUser, useUpdateUser } from '@/hooks/useUser';
 import { Navigation } from '@/components/layout/Navigation';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +11,7 @@ import { Loader2, ChevronRight, Download, Trash2, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
   const { data: user, isLoading, refetch } = useUser();
   const updateUser = useUpdateUser();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -78,8 +80,9 @@ export default function SettingsPage() {
       }
 
       setShowResetConfirm(false);
-      // Refetch user data to reflect the reset
+      // Refetch user data and invalidate achievements cache to reflect the reset
       refetch();
+      queryClient.invalidateQueries({ queryKey: ['achievements'] });
     } catch (error) {
       console.error('Reset failed:', error);
       alert('Failed to reset data. Please try again.');
