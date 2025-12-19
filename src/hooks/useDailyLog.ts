@@ -70,16 +70,41 @@ export function useUpdateDailyLog() {
 
   return useMutation({
     mutationFn: updateDailyLog,
-    onSuccess: async () => {
+    // Optimistic update - immediately update UI before API responds
+    onMutate: async (newData) => {
+      // Cancel any outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['dailyLog', 'today'] });
+
+      // Snapshot the previous value
+      const previousLog = queryClient.getQueryData<DailyLogData>(['dailyLog', 'today']);
+
+      // Optimistically update the cache
+      if (previousLog) {
+        queryClient.setQueryData<DailyLogData>(['dailyLog', 'today'], {
+          ...previousLog,
+          ...newData,
+        });
+      }
+
+      // Return context with the previous value for rollback
+      return { previousLog };
+    },
+    // Rollback on error
+    onError: (_err, _newData, context) => {
+      if (context?.previousLog) {
+        queryClient.setQueryData(['dailyLog', 'today'], context.previousLog);
+      }
+    },
+    // Always refetch after error or success to ensure server state
+    onSettled: async () => {
       queryClient.invalidateQueries({ queryKey: ['dailyLog'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      // Check for new achievements and refresh user data if any were unlocked
+      // Check for new achievements
       try {
         const response = await fetch('/api/achievements', { method: 'POST' });
         if (response.ok) {
           const data = await response.json();
           if (data.newUnlocks?.length > 0) {
-            // Refresh user data to show updated XP from achievements
             queryClient.invalidateQueries({ queryKey: ['user'] });
             queryClient.invalidateQueries({ queryKey: ['achievements'] });
           }
@@ -106,9 +131,31 @@ export function useTogglePenalty() {
       }
       return response.json();
     },
-    onSuccess: async () => {
+    // Optimistic update for penalty toggle
+    onMutate: async ({ penaltyId, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ['dailyLog', 'today'] });
+
+      const previousLog = queryClient.getQueryData<DailyLogData>(['dailyLog', 'today']);
+
+      if (previousLog) {
+        queryClient.setQueryData<DailyLogData>(['dailyLog', 'today'], {
+          ...previousLog,
+          penalties: previousLog.penalties.map((p) =>
+            p.id === penaltyId ? { ...p, completed } : p
+          ),
+        });
+      }
+
+      return { previousLog };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousLog) {
+        queryClient.setQueryData(['dailyLog', 'today'], context.previousLog);
+      }
+    },
+    onSettled: async () => {
       queryClient.invalidateQueries({ queryKey: ['dailyLog'] });
-      // Check for "arise" achievement and refresh if unlocked
+      // Check for "arise" achievement
       try {
         const response = await fetch('/api/achievements', { method: 'POST' });
         if (response.ok) {
