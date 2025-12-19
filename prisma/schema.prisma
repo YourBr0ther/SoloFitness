@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Single user - no auth needed, just one user record
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Settings
+  distanceUnit String @default("km") // "km" | "miles"
+
+  // Progression
+  startDate DateTime @default(now())
+  currentXP Int      @default(0)
+
+  // Streak tracking
+  currentStreak     Int       @default(0)
+  longestStreak     Int       @default(0)
+  lastCompletedDate DateTime?
+
+  // Lifetime stats (denormalized for performance)
+  totalPushups   Int   @default(0)
+  totalSitups    Int   @default(0)
+  totalSquats    Int   @default(0)
+  totalRunningKm Float @default(0)
+  totalWorkouts  Int   @default(0)
+
+  // Relations
+  dailyLogs    DailyLog[]
+  penalties    Penalty[]
+  achievements UserAchievement[]
+}
+
+model DailyLog {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+
+  // Completed amounts
+  pushups   Int   @default(0)
+  situps    Int   @default(0)
+  squats    Int   @default(0)
+  runningKm Float @default(0)
+
+  // Targets for this day (stored for historical accuracy)
+  targetPushups   Int
+  targetSitups    Int
+  targetSquats    Int
+  targetRunningKm Float
+
+  // Status
+  completed Boolean @default(false)
+  xpEarned  Int     @default(0)
+
+  // Relations
+  penalties Penalty[]
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model Penalty {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dailyLogId String
+  dailyLog   DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+
+  exercise  String // "pushups" | "situps" | "squats" | "running"
+  amount    Int // For running, stored as meters (Int)
+  completed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([dailyLogId])
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  key         String @unique // "first_workout", "week_warrior", etc.
+  name        String
+  description String
+  icon        String // Emoji or icon name
+  xpReward    Int    @default(0)
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
