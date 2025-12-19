@@ -40,7 +40,7 @@ export default function AchievementsPage() {
         {/* Header */}
         <header className="mb-6">
           <h1 className="font-heading text-3xl text-glow tracking-wide mb-2">
-            ACHIEVEMENTS
+            AWARDS
           </h1>
           <div className="flex items-center gap-2">
             <Sparkles className="text-accent-cyan" size={20} />
